@@ -230,6 +230,7 @@ class EfficientNetWrapper:
                             initial_epoch=epoch)
     @staticmethod
     def loss_func(class_weight):
+        # TODO: change loss function to be more dynamic
         def loss(y_true, y_pred):
             return focal_loss(y_true, y_pred, class_weight)
         

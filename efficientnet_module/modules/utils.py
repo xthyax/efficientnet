@@ -79,87 +79,30 @@ def compute_class_weight(class_count):
 def flatten_list(list_):
     return [item for sublist in list_ for item in sublist]
 
-def metadata_count(dir, classes, show_table=True):
-    gt_list = []
+def metadata_count(dir, classes, gt_list, show_table=True):
     test_dir = dir if isinstance(dir,list) else [dir]
-    try:
-        for subdir in test_dir:
-            # print(f"[DEBUG] Path: {subdir}")
-            for json_file in glob.glob(subdir + "/*.json"):
-                with open(json_file) as f:
-                    obj = json.load(f)
-                value = obj['classId']
-                gt_list.append(value[0])
+    class_list = list(dict.fromkeys(gt_list))
 
-        class_list = list(dict.fromkeys(gt_list))
-        # print(class_list)
+    Table = PrettyTable()
+    Table.field_names = ['Defect', 'Number of images']
+    count_class = [0] * len(class_list)
+    for i in range(len(gt_list)):
+        for j in range(len(class_list)):
+            if gt_list[i] == class_list[j]:
+                count_class[j] += 1
 
-        Table = PrettyTable()
-        Table.field_names = ['Defect', 'Number of images']
-        count_class = [0] * len(class_list)
-        for i in range(len(gt_list)):
-            for j in range(len(class_list)):
-                if gt_list[i] == class_list[j]:
-                    count_class[j] += 1
-
-        metadata = {}
+    metadata = {}
+    # Empty folder check
+    if len(gt_list) != 0: 
         for i in range(len(classes)):
             metadata.update({classes[i]: count_class[i]})
             Table.add_row([classes[i],count_class[i]])
-        # print(count_class)
-        # print(metadata)
-        if show_table:
-            print(Table)
-        if any('train' in sub_testdir.lower() for sub_testdir in test_dir):
-        # if 'train' in sub_testdir.lower() for sub_testdir in test_dir:
-            # with open (dash_path.join(test_dir.split(dash_path)[:-1]) + dash_path + 'metadata.json', 'w') as output_file:
-            #     json.dump(metadata , output_file)
-            return metadata
-    except (FileNotFoundError, UnboundLocalError):
-        print("="*50)
-        print(f"Didn't find json file at #{subdir}#")
-        print(f"Please re check your {json_file} file")
-        print("="*50)
-
-def crop_off_image_classification(imgpath, center_point, boxSize):
-    # print(imgpath)
-    img = cv2.imread(imgpath)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # center_point = str.format("{} {}", int( img.shape[0]/2), int( img.shape[1]/2))
-    # print(center_point)
-    if boxSize != 0:
-        # print(img)
-        startX = int(center_point[0] - boxSize/2)
-        startY = int(center_point[1] - boxSize/2)
-        return img[startY: startY + boxSize, startX: startX + boxSize], center_point[0]-startX, center_point[1]-startY
-    else:
-        startX = 0
-        startY = 0
-        return img[startY: startY + img.shape[0], startX: startX + img.shape[1]], img.shape[0]/2, img.shape[1]/2
-
-def image_read(image_path , size):
-    desired_size = size
-    im_pth = image_path
-
-    im = cv2.imread(im_pth)
-    old_size = im.shape[:2] # old_size is in (height, width) format
-
-    ratio = float(desired_size)/max(old_size)
-    new_size = tuple([int(x*ratio) for x in old_size])
-
-    # new_size should be in (width, height) format
-
-    im = cv2.resize(im, (new_size[1], new_size[0]))
-
-    delta_w = desired_size - new_size[1]
-    delta_h = desired_size - new_size[0]
-    top, bottom = delta_h//2, delta_h-(delta_h//2)
-    left, right = delta_w//2, delta_w-(delta_w//2)
-
-    color = [0, 0, 0]
-    new_im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT,
-        value=color)
-    return new_im
+    if show_table:
+        print(f"[DEBUG] Path: {test_dir}")
+        print(Table)
+    if any('train' in sub_testdir.lower() for sub_testdir in test_dir):
+        # print("[DEBUG] Had return metadata value")
+        return metadata
 
 def config_dump(save_path, config):
     data ={
@@ -197,6 +140,7 @@ def load_and_crop(image_path, input_size=0):
             center_y = box['centerY'][0]
             widthBox = box['widthBox'][0]
             heightBox = box['heightBox'][0]
+            class_gt = json_data['classId'][0]
     except:
         print(f"Can't find {json_path}")
         # Crop center image if no json found
@@ -212,4 +156,4 @@ def load_and_crop(image_path, input_size=0):
     left, top = round(max(0, left)), round(max(0, top))
     right, bottom = round(min(size_image[1] - 0, right)), round(min(size_image[0] - 0, bottom))
 
-    return image[int(top):int(bottom), int(left):int(right)]
+    return image[int(top):int(bottom), int(left):int(right)], class_gt

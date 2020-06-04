@@ -10,10 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-from efficientnet_module.modules import config_loader
-from efficientnet_module.modules.efficientnet_wrapper import EfficientNetWrapper
-from efficientnet_module.modules.utils import load_and_crop
-
+from efficient_module import config_loader
+from efficient_module.efficientnet_wrapper import EfficientNetWrapper
+from efficient_module.utils import load_and_crop
 ###################
 # Global Constant #
 ###################
@@ -73,20 +72,59 @@ if __name__ == '__main__':
             LOGS_PATH = args.logs
             DATASET_PATH = args.dataset
             WEIGHT_PATH = args.weight if args.weight else None
-
+            FAIL_CLASSNAME = param.FAILCLASS_NAME
+            PASS_CLASSNAME = param.PASSCLASS_NAME
+            BINARY = True # Hardcode
 
         config = TrainConfig()
         model = EfficientNetWrapper(config)
         model.prepare_data()
-        # _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
-        # if _init_t.lower() == "y":
-        if config.WEIGHT_PATH:
-            model.resume_training()
+        _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
+        if _init_t.lower() == "y":
+
+            if config.WEIGHT_PATH:
+                model.resume_training()
+            else:
+                model.train()
+
         else:
-            model.train()
-        # else:
-        #     pass
+            pass
         print("\nTrain Done")
+
+    elif args.command == "cm":
+        param = config_loader.LoadConfig(args.config)
+        
+        class InferConfig:
+            NO_EPOCH = param.NO_EPOCH
+            GPU_COUNT = param.NUM_GPU
+            LEARNING_RATE = param.LEANING_RATE
+            LEARNING_MOMENTUM = param.MOMENTUM
+            WEIGHT_DECAY = param.DECAY
+            OPTIMIZER = param.OPTIMIZER
+            NUM_CLASSES = len(param.CLASS_NAME)
+            CLASS_NAME = param.CLASS_NAME
+            INPUT_SIZE = param.CHANGE_BOX_SIZE
+            IMAGES_PER_GPU = param.BATCH_SIZE
+            CLASS_THRESHOLD = param.CLASS_THRESHOLD
+            AU_LIST = param.AUGMENT_LIST
+            if AU_LIST == [] or AU_LIST == None:
+                AU_LIST = False
+            else:
+                AU_LIST = True
+            ARCHITECTURE = param.ARCHITECTURE
+            BATCH_SIZE = param.BATCH_SIZE
+            LOGS_PATH = args.logs
+            DATASET_PATH = args.dataset
+            WEIGHT_PATH = args.weight if args.weight else None
+            FAIL_CLASSNAME = param.FAILCLASS_NAME
+            PASS_CLASSNAME = param.PASSCLASS_NAME
+            BINARY = True # Hardcode
+
+        config = InferConfig()
+        model = EfficientNetWrapper(config)
+        model.load_weight()
+        model.confusion_matrix_evaluate()
+
     elif args.command == "test":
         param = config_loader.LoadConfig(args.config)
         assert args.weight
@@ -137,7 +175,7 @@ if __name__ == '__main__':
                         if label == gt_name:
                             gt_id = i
                     box = dict(json_data['box'])
-                    img = load_and_crop(img_path, box)
+                    img, _ = load_and_crop(img_path, config.INPUT_SIZE)
                     pred_id, pred_score, pred_name = model.predict_one(img)
 
                     pred_dir = ''
@@ -194,7 +232,7 @@ if __name__ == '__main__':
             values = np.reshape(anchors, (anchors.shape[0], 1))
             keys = ['centerX', 'centerY', 'widthBox', 'heightBox']
             box = dict(zip(keys, values))
-            image = load_and_crop(image_name, box)
+            image, _ = load_and_crop(image_name, config.INPUT_SIZE)
 
             try:
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
@@ -288,7 +326,7 @@ if __name__ == '__main__':
                     values = np.reshape(anchors, (anchors.shape[0], 1))
                     keys = ['centerX', 'centerY', 'widthBox', 'heightBox']
                     box = dict(zip(keys, values))
-                    image = load_and_crop(imagePath, box)
+                    image, _ = load_and_crop(imagePath, config.INPUT_SIZE)
 
                     try:
                         image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)

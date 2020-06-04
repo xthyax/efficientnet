@@ -22,6 +22,8 @@ class LoadConfig:
         self.OPTIMIZER = self.config['Optimizer']
         self.ARCHITECTURE = self.config['Architecture']
         self.CLASS_NAME =  [class_name for class_name in self.config['DictionaryClassName']]
+        self.FAILCLASS_NAME = self.config['FailClassName']
+        self.PASSCLASS_NAME = self.config['PassClassName']
         try:
             self.NUM_GPU = self.config['NUM_GPU']
         except:

@@ -103,14 +103,14 @@ class EfficientNetWrapper:
 
         self.train_generator = DataGenerator(train_dir, self.config.BATCH_SIZE,\
             self.classes, self.failClasses, self.passClasses,\
-            self.binary_option, self.input_size, augmentation=self.config.AU_LIST)
+            self.input_size, self.binary_option, augmentation=self.config.AU_LIST)
         
         self.val_generator = DataGenerator(val_dir, self.config.BATCH_SIZE, \
             self.classes, self.failClasses, self.passClasses,\
-            self.binary_option, self.input_size)
+            self.input_size, self.binary_option)
         self.test_generator = DataGenerator(test_dir, self.config.BATCH_SIZE, \
             self.classes, self.failClasses, self.passClasses,\
-            self.binary_option, self.input_size)
+            self.input_size, self.binary_option)
 
         self.class_weights = compute_class_weight(self.train_generator.metadata.values())
 

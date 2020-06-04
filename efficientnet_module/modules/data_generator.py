@@ -2,7 +2,7 @@ from random import shuffle
 
 from efficientnet.keras import preprocess_input
 from keras.utils import Sequence
-from augmentation_setup import simple_augmentation
+from .augmentation_setup import simple_augmentation
 import numpy as np
 import cv2
 import glob
@@ -12,7 +12,7 @@ from .utils import to_onehot, load_and_crop, metadata_count
 
 
 class DataGenerator(Sequence):
-    def __init__(self, input_dir, batch_size, classes, failClasses, passClasses, input_size, crop=True, augmentation=None):
+    def __init__(self, input_dir, batch_size, classes, failClasses, passClasses, input_size, binary_option, crop=True, augmentation=None):
         if isinstance(input_dir, list):
             self.input_dir = input_dir
         else:

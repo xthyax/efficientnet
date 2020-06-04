@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-from efficient_module import config_loader
-from efficient_module.efficientnet_wrapper import EfficientNetWrapper
-from efficient_module.utils import load_and_crop
+from efficientnet_module.modules import config_loader
+from efficientnet_module.modules.efficientnet_wrapper import EfficientNetWrapper
+from efficientnet_module.modules.utils import load_and_crop
 ###################
 # Global Constant #
 ###################

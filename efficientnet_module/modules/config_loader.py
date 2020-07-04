@@ -20,7 +20,10 @@ class LoadConfig:
         self.CHANGE_BOX_SIZE = self.config['ChangeBoxSize']
         self.AUGMENT_LIST = self.config['AugmentList']
         self.OPTIMIZER = self.config['Optimizer']
-        self.ARCHITECTURE = self.config['Architecture']
+        try :
+            self.ARCHITECTURE = self.config['Architecture']
+        except:
+            self.ARCHITECTURE = "B4"
         self.CLASS_NAME =  [class_name for class_name in self.config['DictionaryClassName']]
         self.FAILCLASS_NAME = self.config['FailClassName']
         self.PASSCLASS_NAME = self.config['PassClassName']

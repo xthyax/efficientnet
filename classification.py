@@ -125,6 +125,40 @@ if __name__ == '__main__':
         model.load_weight()
         model.confusion_matrix_evaluate()
 
+    elif args.command == "labelling":
+        param = config_loader.LoadConfig(args.config)
+        
+        class InferConfig:
+            NO_EPOCH = param.NO_EPOCH
+            GPU_COUNT = param.NUM_GPU
+            LEARNING_RATE = param.LEANING_RATE
+            LEARNING_MOMENTUM = param.MOMENTUM
+            WEIGHT_DECAY = param.DECAY
+            OPTIMIZER = param.OPTIMIZER
+            NUM_CLASSES = len(param.CLASS_NAME)
+            CLASS_NAME = param.CLASS_NAME
+            INPUT_SIZE = param.CHANGE_BOX_SIZE
+            IMAGES_PER_GPU = param.BATCH_SIZE
+            CLASS_THRESHOLD = param.CLASS_THRESHOLD
+            AU_LIST = param.AUGMENT_LIST
+            if AU_LIST == [] or AU_LIST == None:
+                AU_LIST = False
+            else:
+                AU_LIST = True
+            ARCHITECTURE = param.ARCHITECTURE
+            BATCH_SIZE = param.BATCH_SIZE
+            LOGS_PATH = args.logs
+            DATASET_PATH = args.dataset
+            WEIGHT_PATH = args.weight if args.weight else None
+            FAIL_CLASSNAME = param.FAILCLASS_NAME
+            PASS_CLASSNAME = param.PASSCLASS_NAME
+            BINARY = True # Hardcode
+
+        config = InferConfig()
+        model = EfficientNetWrapper(config)
+        model.load_weight()
+        model.labelling_raw_data()
+
     elif args.command == "test":
         param = config_loader.LoadConfig(args.config)
         assert args.weight

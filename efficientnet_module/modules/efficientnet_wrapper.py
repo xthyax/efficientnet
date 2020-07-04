@@ -21,11 +21,17 @@ from keras_radam import RAdam
 from .callbacks import SaveMultiGPUModelCheckpoint
 from .data_generator import DataGenerator
 # from .utils import cou
-from .utils import multi_threshold, recursive_glob, compute_class_weight, recursive_folder, config_dump
+from .utils import multi_threshold, recursive_glob, compute_class_weight, recursive_folder, config_dump, load_and_crop
 from .focal_loss import focal_loss
 # from efficientnet_module.modules.config import Optimizer_, FREEZE
 # from efficientnet_module.modules import config
 from .callbacks import SGDLearningRateTracker
+
+import glob
+import tqdm
+import itertools
+from loguru import logger
+import shutil
 
 from keras.callbacks import ModelCheckpoint
 
@@ -64,7 +70,7 @@ class EfficientNetWrapper:
                 'L2': EfficientNetL2
             }[self.config.ARCHITECTURE]
         except KeyError:
-            raise ValueError('Invalid EfficientNet architecture')
+            raise ValueError('Invalid Classification Settings')
 
         # Redundant RGB channels for grayscale input
         base_model = model_class(input_shape=(self.input_size, self.input_size, 3),\
@@ -184,6 +190,7 @@ class EfficientNetWrapper:
         
         # my_callback = ModelCheckpoint(train_checkpoint_dir + '/ep{epoch:04d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5', monitor='val_loss', save_best_only=False, save_weights_only=False)
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
+
         model.compile(optimizer=optimizer, loss=self.lossFunc_chosen('binary'), metrics=['accuracy'])
         model.fit_generator(self.train_generator, epochs=self.config.EPOCH, validation_data=self.val_generator, max_queue_size=10,
                             workers=1, callbacks=[checkpoint_callback, tensorboard_callback])
@@ -206,7 +213,7 @@ class EfficientNetWrapper:
             Y_class_id = np.argmax(Y, axis=-1)
             Y_score = np.max(Y, axis=-1)
         else:
-            ret = multi_threshold(Y, thresholds)
+            ret = multi_threshold(Y, self.config.CLASS_THRESHOLD)
             if ret is None:
                 classID = -1
                 className = "Unknown"
@@ -257,12 +264,91 @@ class EfficientNetWrapper:
                             max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback],
                             initial_epoch=epoch)
 
+    def labelling_raw_data(self):
+        path = [
+            os.path.join(self.config.DATASET_PATH)
+        ]
+        result_path = [
+            os.path.join("_Labelled","Reject"),
+            os.path.join("_Labelled","Pass"),
+            os.path.join("_Labelled","Unclear")
+        ]
+        for sub_path in path:
+            print(f"[DEBUG] Labelling: {sub_path}")
+            images_list = []
+            for image in glob.glob(sub_path + "/*.bmp"):
+                images_list.append(image)
+
+        with tqdm.tqdm(total=len(images_list)) as pbar:
+            for image_index, image_path in itertools.islice(enumerate(images_list), len(images_list)):
+
+                img, gt_name = load_and_crop(image_path, self.config.INPUT_SIZE)
+                pred_id, pred_score, pred_name = self.predict_one(img)
+                image_name = image_path.split("\\")[-1]
+                print(f"[DEBUG] {image_name}")
+                print(f"[DEBUG] pred_id: {pred_id} - pred_score: {pred_score} -  pred_name: {pred_name}")
+
+                if self.binary_option:
+                    
+                    if (pred_id == 1 or pred_id == -1) and pred_score >= 0.8:   # Pass
+                        Pass_path = os.path.join("_Labelled","Pass")
+                        os.makedirs(Pass_path, exist_ok=True)
+
+                        shutil.copy(image_path, os.path.join(Pass_path,image_name))
+                        json_path = image_path + ".json"
+
+                        with open(json_path, encoding='utf-8') as json_file:
+                            json_data = json.load(json_file)
+                        json_data["classId"] = ["Pass"]
+
+                        with open(os.path.join(Pass_path,image_name) + ".json", "w") as bmp_json:
+                            json.dump(json_data, bmp_json)
+
+                    elif pred_id == 0 and pred_score >= 0.8:                    # Reject
+                        Reject_path = os.path.join("_Labelled","Reject")
+                        os.makedirs(Reject_path, exist_ok=True)
+                        
+                        shutil.copy(image_path, os.path.join(Reject_path,image_name))
+                        json_path = image_path + ".json"
+
+                        with open(json_path, encoding='utf-8') as json_file:
+                            json_data = json.load(json_file)
+                        json_data["classId"] = ["Burr"]
+
+                        with open(os.path.join(Reject_path,image_name) + ".json", "w") as bmp_json:
+                            json.dump(json_data, bmp_json)
+                    else:                                                       # Unknow
+                        Unclear_path = os.path.join("_Labelled","Unknow")
+                        os.makedirs(Unclear_path, exist_ok=True)
+                        
+                        shutil.copy(image_path, os.path.join(Unclear_path,image_name))
+                        json_path = image_path + ".json"
+
+                        with open(json_path, encoding='utf-8') as json_file:
+                            json_data = json.load(json_file)
+                        json_data["classId"] = ["Unclear"]
+
+                        with open(os.path.join(Unclear_path,image_name) + ".json", "w") as bmp_json:
+                            json.dump(json_data, bmp_json)
+                else:
+                    gt_id = self.classes.index(gt_name)
+
+                pbar.update()
+
+        logger.info("Done")
+
     def confusion_matrix_evaluate(self):
         path =  [
             os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
             os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
             os.path.join(self.config.DATASET_PATH,"Test")                   #Hardcode
         ]
+        result_path = [
+            os.path.join("_Result","UK"),
+            os.path.join("_Result","OK")
+        ]
+        for sub_result in result_path:
+            os.makedirs(sub_result, exist_ok=True)
         for sub_path in path:
             print(f"[DEBUG] Evaluating: {sub_path}")
             image_list = []
@@ -276,18 +362,25 @@ class EfficientNetWrapper:
                 for image_index, image_path in itertools.islice(enumerate(image_list), len(image_list)):
 
                     img, gt_name = load_and_crop(image_path, self.config.INPUT_SIZE)
+                    pred_id, pred_score, pred_name = self.predict_one(img)
 
                     if self.binary_option:
 
                         gt_name = 'Reject' if gt_name in self.failClasses else 'Pass'
                         gt_id = self.classes.index(gt_name)
-
+                        image_name = image_path.split("\\")[-1]
+                        if gt_id == 0 and (pred_id == 1 or pred_id == -1):  # Underkill
+                            underkill_path = os.path.join("_Result",image_path.split("\\")[-2],"UK")
+                            os.makedirs(underkill_path, exist_ok=True)
+                            cv2.imwrite(os.path.join(underkill_path,image_name), img)
+                        elif gt_id == 1 and pred_id == 0:                   # Overkill
+                            overkill_path = os.path.join("_Result",image_path.split("\\")[-2],"OK")
+                            os.makedirs(overkill_path, exist_ok=True)
+                            cv2.imwrite(os.path.join(overkill_path, image_name), img)
                     else:
 
                         gt_id = self.classes.index(gt_name)
                     
-                    pred_id, pred_score, pred_name = self.predict_one(img)
-
                     confusion_matrix[gt_id][pred_id] += 1
 
                     pbar.update()

@@ -2,7 +2,7 @@ from random import shuffle
 
 from efficientnet.keras import preprocess_input
 from keras.utils import Sequence
-from .augmentation_setup import simple_augmentation
+from .augmentation_setup import simple_augmentation, skywork_augmentation, complex_augmentation
 import numpy as np
 import cv2
 import glob
@@ -29,11 +29,12 @@ class DataGenerator(Sequence):
         self.num_of_classes = len(self.classes)
         self.img_path_labels = self.load_data()
         self.metadata = metadata_count(self.input_dir, self.classes, self.gt_list, show_table=True)
-        if augmentation:
+        if augmentation:                # True: using simple augment
             self.augmentation = lambda x: x
-        else:
+        elif augmentation == None:      # augment untouch for validation and test data generator 
             self.augmentation = lambda x: x
-            # self.augmentation = lambda x: augmentation(images=x)
+        else:                           # False: using YOUR augment
+            self.augmentation = lambda x: skywork_augmentation(images=x)
 
     def load_classes(self, classes):
         if self.binary_option:

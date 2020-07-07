@@ -87,8 +87,8 @@ def metadata_count(dir, classes, gt_list, show_table=True):
     Table.field_names = ['Defect', 'Number of images']
     count_class = [0] * len(class_list)
     for i in range(len(gt_list)):
-        for j in range(len(class_list)):
-            if gt_list[i] == class_list[j]:
+        for j in range(len(classes)):
+            if gt_list[i] == classes[j]:
                 count_class[j] += 1
 
     metadata = {}

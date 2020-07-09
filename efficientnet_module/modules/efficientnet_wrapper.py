@@ -97,7 +97,10 @@ class EfficientNetWrapper:
             pass
         else:
             augment_dir = [x for x in train_dir if 'transformimage' in x.lower()]
-            train_dir.remove(augment_dir[0])
+            try:
+                train_dir.remove(augment_dir[0])
+            except IndexError:
+                print("There is nothing to remove")
         val_dir = os.path.join(self.config.DATASET_PATH, 'Validation')
         test_dir = os.path.join(self.config.DATASET_PATH, 'Test')
 

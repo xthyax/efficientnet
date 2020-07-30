@@ -7,16 +7,23 @@ import glob
 
 import cv2
 import numpy as np
+import random
+import tensorflow as tf
+
 import matplotlib.pyplot as plt
 import argparse
 
 from efficientnet_module.modules import config_loader
 from efficientnet_module.modules.efficientnet_wrapper import EfficientNetWrapper
 from efficientnet_module.modules.utils import load_and_crop
+
 ###################
 # Global Constant #
 ###################
 
+np.random.seed(1)
+tf.set_random_seed(1)
+random.seed(1)
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(ROOT_DIR)
@@ -64,7 +71,7 @@ if __name__ == '__main__':
             THRESHOLDS = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = True
             ARCHITECTURE = param.ARCHITECTURE
@@ -108,7 +115,7 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = True
             ARCHITECTURE = param.ARCHITECTURE
@@ -142,7 +149,7 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = True
             ARCHITECTURE = param.ARCHITECTURE

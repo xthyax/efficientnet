@@ -203,9 +203,9 @@ class EfficientNetWrapper:
         self.load_classes()
 
     def predict_one(self, img):
-        resized_img = cv2.resize(img, (self.input_size, self.input_size))
+        # resized_img = cv2.resize(img, (self.input_size, self.input_size))
         # resized_img = image_read(img, self.input_size)
-        input_data = np.array([resized_img])
+        input_data = np.array([img])
         X = preprocess_input(input_data)
 
         with self.graph.as_default():
@@ -364,7 +364,7 @@ class EfficientNetWrapper:
             with tqdm.tqdm(total=len(image_list)) as pbar:
                 for image_index, image_path in itertools.islice(enumerate(image_list), len(image_list)):
 
-                    img, gt_name = load_and_crop(image_path, self.config.INPUT_SIZE)
+                    img, gt_name = load_and_crop(image_path, self.input_size)
                     pred_id, pred_score, pred_name = self.predict_one(img)
 
                     if self.binary_option:

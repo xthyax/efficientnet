@@ -7,6 +7,7 @@ from pathlib import Path
 import cv2
 import keras
 import numpy as np
+import pandas as pd
 from efficientnet.keras import *
 import tensorflow as tf
 from keras.models import load_model
@@ -14,14 +15,14 @@ from keras.engine.saving import model_from_json
 from keras.utils import multi_gpu_model
 from keras import backend as K
 from keras import optimizers
-from keras_adabound import AdaBound
 from keras_lookahead import Lookahead
 from keras_radam import RAdam
 
-from .callbacks import SaveMultiGPUModelCheckpoint
+from .callbacks import SaveMultiGPUModelCheckpoint, CustomCallback
 from .data_generator import DataGenerator
 # from .utils import cou
-from .utils import multi_threshold, recursive_glob, compute_class_weight, recursive_folder, config_dump, load_and_crop
+from .utils import multi_threshold, recursive_glob, compute_class_weight, recursive_folder, config_dump, load_and_crop, \
+    get_dataframe, get_z_score_info, get_z_score, SplitDataFrameToTrainAndTest, get_dataframe_one
 from .focal_loss import focal_loss
 # from efficientnet_module.modules.config import Optimizer_, FREEZE
 # from efficientnet_module.modules import config
@@ -32,6 +33,13 @@ import tqdm
 import itertools
 from loguru import logger
 import shutil
+import xlsxwriter
+
+import xgboost as xgb
+from xgboost import XGBClassifier
+from sklearn.ensemble import *
+from sklearn.neighbors import *
+from sklearn.tree import *
 
 from keras.callbacks import ModelCheckpoint
 
@@ -50,11 +58,13 @@ class EfficientNetWrapper:
         self.train_generator = None
         self.val_generator = None
         self.test_generator = None
+        self.evaluate_generator = None
         self.id_class_mapping = None
         self.class_weights = None
         self.graph = tf.get_default_graph()
         self.session = K.get_session()
         self.config = config
+        self.ensemble_model = None
 
     def _build_model(self):
         try:
@@ -93,10 +103,10 @@ class EfficientNetWrapper:
         # TODO: Merge with Front-end and dev
         train_dir = os.path.join(self.config.DATASET_PATH, 'Train')
         train_dir = recursive_folder(train_dir)
+        augment_dir = [x for x in train_dir if 'transformimage' in x.lower()]
         if self.config.AU_LIST:
             pass
         else:
-            augment_dir = [x for x in train_dir if 'transformimage' in x.lower()]
             try:
                 train_dir.remove(augment_dir[0])
             except IndexError:
@@ -104,6 +114,9 @@ class EfficientNetWrapper:
         val_dir = os.path.join(self.config.DATASET_PATH, 'Validation')
         test_dir = os.path.join(self.config.DATASET_PATH, 'Test')
 
+        train_origin_dir = train_dir.copy()
+        [train_origin_dir.remove(augment_dir[0]) if (len(augment_dir) > 0) else train_origin_dir]
+        train_origin_dir = train_origin_dir[0]
         # print(f"[DEBUG] Train dir:\n{train_dir}")
         # print(f"[DEBUG] Valdiation dir:\n{val_dir}")
         # print(f"[DEBUG] Test dir:\n{test_dir}")
@@ -121,8 +134,13 @@ class EfficientNetWrapper:
             self.classes, self.failClasses, self.passClasses,\
             self.input_size, self.binary_option)
 
-        self.class_weights = compute_class_weight(self.train_generator.metadata.values())
+        self.evaluate_generator = DataGenerator([train_origin_dir, val_dir, test_dir], self.config.BATCH_SIZE,\
+            self.classes, self.failClasses, self.passClasses, \
+            self.input_size, self.binary_option)
 
+        self.class_weights = compute_class_weight(self.train_generator.metadata.values())
+        x_data, y_data = self.train_generator[0]
+        print(len(x_data))
     def lossFunc_chosen(self, option):
         try:
             loss_dict = {
@@ -158,7 +176,6 @@ class EfficientNetWrapper:
                 'sgd': optimizers.SGD(lr=self.config.LEARNING_RATE, momentum=self.config.LEARNING_MOMENTUM),
                 'adam': optimizers.Adam(lr=self.config.LEARNING_RATE),
                 'nadam': optimizers.Nadam(),
-                'adabound': AdaBound(),
                 'radam': RAdam(),
                 'ranger': Lookahead(RAdam()),
             }[self.config.OPTIMIZER.lower()]
@@ -202,16 +219,22 @@ class EfficientNetWrapper:
         self.keras_model = load_model(self.config.WEIGHT_PATH, compile=False)
         self.load_classes()
 
-    def predict_one(self, img):
+    def predict_one(self, img, return_all):
         # resized_img = cv2.resize(img, (self.input_size, self.input_size))
         # resized_img = image_read(img, self.input_size)
         input_data = np.array([img])
         X = preprocess_input(input_data)
-
+        # Using ensemble model ==============================
+        # X_data = self.get_feature_one(img)
+        # ensemble_prop = self.ensemble_prediction(X_data)
+        # ===================================================
+        print(f"[DEBUG] ensemble propability : {ensemble_prop[0]}")
         with self.graph.as_default():
             with self.session.as_default():
                 Y = self.keras_model.predict(X)
-
+        # Combine with ensemble model========================
+        # Y = Y * 0.7 + ensemble_prop * 0.3
+        # ===================================================
         if self.config.CLASS_THRESHOLD is None or len(self.config.CLASS_THRESHOLD) == 0:
             Y_class_id = np.argmax(Y, axis=-1)
             Y_score = np.max(Y, axis=-1)
@@ -226,7 +249,13 @@ class EfficientNetWrapper:
                 Y_class_id, Y_score = ret
 
         Y_class_name = self.id_class_mapping[Y_class_id[0]]
-        return Y_class_id[0], Y_score[0], Y_class_name
+        # print(f"[DEBUG] Y_class_id: {Y_class_id}")
+        # print(f"[DEBUG] Y_score: {Y_score}")
+        print(f"[DEBUG] all scores: {Y[0]}")
+        if return_all :
+            return Y[0]
+        else:
+            return Y_class_id[0], Y_score[0], Y_class_name
 
     def evaluate(self, subset='test'):
         # TODO: make evaluate for all set instead of just test set
@@ -250,7 +279,10 @@ class EfficientNetWrapper:
 
         # train
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=self.config.LOGS_PATH)
-        
+        custom_callback = CustomCallback(tensorboard_callback,\
+            self.evaluate_generator, self.classes, self.failClasses, self.passClasses)
+
+
         if self.config.GPU_COUNT > 1:
             model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
         elif self.config.GPU_COUNT == 1:
@@ -264,7 +296,7 @@ class EfficientNetWrapper:
         # model.compile(optimizer='SGD', loss='categorical_crossentropy', metrics=['accuracy'])
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, self.config.LOGS_PATH)
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
-                            max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback],
+                            max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
                             initial_epoch=epoch)
 
     def labelling_raw_data(self):
@@ -286,9 +318,11 @@ class EfficientNetWrapper:
             for image_index, image_path in itertools.islice(enumerate(images_list), len(images_list)):
 
                 img, gt_name = load_and_crop(image_path, self.config.INPUT_SIZE)
-                pred_id, pred_score, pred_name = self.predict_one(img)
+                pred_id, pred_score, pred_name = self.predict_one(img, 0)
+                all_scores = self.predict_one(img, 1)
                 image_name = image_path.split("\\")[-1]
-                print(f"[DEBUG] {image_name}")
+                print(f"[DEBUG] image id:\t{image_name}")
+                print(f"[DEBUG] all scores:\t{all_scores}")
                 print(f"[DEBUG] pred_id: {pred_id} - pred_score: {pred_score} -  pred_name: {pred_name}")
 
                 if self.binary_option:
@@ -300,12 +334,12 @@ class EfficientNetWrapper:
                         shutil.copy(image_path, os.path.join(Pass_path,image_name))
                         json_path = image_path + ".json"
 
-                        with open(json_path, encoding='utf-8') as json_file:
-                            json_data = json.load(json_file)
-                        json_data["classId"] = ["Pass"]
+                        # with open(json_path, encoding='utf-8') as json_file:
+                        #     json_data = json.load(json_file)
+                        # json_data["classId"] = ["Pass"]
 
-                        with open(os.path.join(Pass_path,image_name) + ".json", "w") as bmp_json:
-                            json.dump(json_data, bmp_json)
+                        # with open(os.path.join(Pass_path,image_name) + ".json", "w") as bmp_json:
+                        #     json.dump(json_data, bmp_json)
 
                     elif pred_id == 0 and pred_score >= 0.8:                    # Reject
                         Reject_path = os.path.join("_Labelled","Reject")
@@ -314,12 +348,12 @@ class EfficientNetWrapper:
                         shutil.copy(image_path, os.path.join(Reject_path,image_name))
                         json_path = image_path + ".json"
 
-                        with open(json_path, encoding='utf-8') as json_file:
-                            json_data = json.load(json_file)
-                        json_data["classId"] = ["Burr"]
+                        # with open(json_path, encoding='utf-8') as json_file:
+                        #     json_data = json.load(json_file)
+                        # json_data["classId"] = ["Burr"]
 
-                        with open(os.path.join(Reject_path,image_name) + ".json", "w") as bmp_json:
-                            json.dump(json_data, bmp_json)
+                        # with open(os.path.join(Reject_path,image_name) + ".json", "w") as bmp_json:
+                        #     json.dump(json_data, bmp_json)
                     else:                                                       # Unknow
                         Unclear_path = os.path.join("_Labelled","Unknow")
                         os.makedirs(Unclear_path, exist_ok=True)
@@ -327,12 +361,12 @@ class EfficientNetWrapper:
                         shutil.copy(image_path, os.path.join(Unclear_path,image_name))
                         json_path = image_path + ".json"
 
-                        with open(json_path, encoding='utf-8') as json_file:
-                            json_data = json.load(json_file)
-                        json_data["classId"] = ["Unclear"]
+                        # with open(json_path, encoding='utf-8') as json_file:
+                        #     json_data = json.load(json_file)
+                        # json_data["classId"] = ["Unclear"]
 
-                        with open(os.path.join(Unclear_path,image_name) + ".json", "w") as bmp_json:
-                            json.dump(json_data, bmp_json)
+                        # with open(os.path.join(Unclear_path,image_name) + ".json", "w") as bmp_json:
+                        #     json.dump(json_data, bmp_json)
                 else:
                     gt_id = self.classes.index(gt_name)
 
@@ -342,16 +376,39 @@ class EfficientNetWrapper:
 
     def confusion_matrix_evaluate(self):
         path =  [
+            # os.path.join(self.config.DATASET_PATH,"3party_part1_disagree_reviewed"),    #Hardcode
+            # os.path.join(self.config.DATASET_PATH,"agree_part2"),                       #Hardcode
+            # os.path.join(self.config.DATASET_PATH,"agree_part3"),                       #Hardcode
+            # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part2"),        #Hardcode
+            # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part3"),        #Hardcode
             os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
             os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
             os.path.join(self.config.DATASET_PATH,"Test")                   #Hardcode
         ]
-        result_path = [
-            os.path.join("_Result","UK"),
-            os.path.join("_Result","OK")
-        ]
-        for sub_result in result_path:
-            os.makedirs(sub_result, exist_ok=True)
+        # result_path = [
+        #     os.path.join("_Result","UK"),
+        #     os.path.join("_Result","OK")
+        # ]
+        # for sub_result in result_path:
+        #     os.makedirs(sub_result, exist_ok=True)
+        workbook = xlsxwriter.Workbook("_model_result.xlsx")
+
+        cell_format = workbook.add_format()
+        cell_format.set_align('center')
+        cell_format.set_align('vcenter')
+
+        highlight_format = workbook.add_format()
+        highlight_format.set_align('center')
+        highlight_format.set_align('vcenter')
+        highlight_format.set_bg_color("red")
+        # highlight_format.set_font_color
+
+        Header = ["image_id","Image","Label","Predict"]
+        Header.extend(self.classes)
+        Header.append("Underkill")
+        Header.append("Overkill")
+        # Init ensemble model
+        self.get_ensemble_model()
         for sub_path in path:
             print(f"[DEBUG] Evaluating: {sub_path}")
             image_list = []
@@ -359,14 +416,23 @@ class EfficientNetWrapper:
                 image_list.append(image)
             # print(image_list)
             # break
+
+            start_row = 0
+            start_column = 1
+            worksheet = workbook.add_worksheet(sub_path.split("\\")[-1])
+            worksheet.write_row( start_row, start_column, Header, cell_format)
+            worksheet.set_column("C:C",10)
             confusion_matrix = np.zeros(shape=(len(self.id_class_mapping) + 1, len(self.id_class_mapping) + 1), dtype=np.int)
             
             with tqdm.tqdm(total=len(image_list)) as pbar:
                 for image_index, image_path in itertools.islice(enumerate(image_list), len(image_list)):
-
+                    Data = [0] * len(Header)
+                    start_row += 1
+                    worksheet.set_row(start_row, 60)
+                    underkill_overkill_flag = 0
                     img, gt_name = load_and_crop(image_path, self.input_size)
-                    pred_id, pred_score, pred_name = self.predict_one(img)
-
+                    pred_id, pred_score, pred_name = self.predict_one(img, 0)
+                    all_scores = self.predict_one(img, 1)
                     if self.binary_option:
 
                         gt_name = 'Reject' if gt_name in self.failClasses else 'Pass'
@@ -375,23 +441,94 @@ class EfficientNetWrapper:
                         if gt_id == 0 and (pred_id == 1 or pred_id == -1):  # Underkill
                             underkill_path = os.path.join("_Result",image_path.split("\\")[-2],"UK")
                             os.makedirs(underkill_path, exist_ok=True)
-                            cv2.imwrite(os.path.join(underkill_path,image_name), img)
+                            image_output_path = os.path.join(underkill_path,image_name)
+                            cv2.imwrite(image_output_path, img)
+                            shutil.copy(image_path + ".json", os.path.join(underkill_path,image_name+".json"))
+                            underkill_overkill_flag = -1
                         elif gt_id == 1 and pred_id == 0:                   # Overkill
                             overkill_path = os.path.join("_Result",image_path.split("\\")[-2],"OK")
                             os.makedirs(overkill_path, exist_ok=True)
-                            cv2.imwrite(os.path.join(overkill_path, image_name), img)
+                            image_output_path = os.path.join(overkill_path,image_name)
+                            cv2.imwrite(image_output_path, img)
+                            shutil.copy(image_path + ".json", os.path.join(overkill_path,image_name+".json"))
+                            underkill_overkill_flag = 1
+                        else:                                               # Correct result
+                            result_path = os.path.join("_Result", image_path.split("\\")[-2])
+                            os.makedirs(result_path, exist_ok=True)
+                            image_output_path = os.path.join(result_path,image_name)
+                            cv2.imwrite(image_output_path, img)
+                            shutil.copy(image_path + ".json", os.path.join(result_path,image_name + ".json"))
                     else:
 
                         gt_id = self.classes.index(gt_name)
                     
                     confusion_matrix[gt_id][pred_id] += 1
+                    
+                    Data[0] = image_name.split(".")[0]
+                    Data[2] = gt_name
+                    Data[3] = pred_name
+                    Data[4:4+len(self.classes)] = all_scores
+                    Data[-2] = True if underkill_overkill_flag == -1 else False
+                    Data[-1] = True if underkill_overkill_flag == 1 else False
 
+                    for index, info in enumerate(Data):
+                        
+                        excel_format = highlight_format if (Data[index] == True and isinstance(Data[index],bool)) else cell_format
+
+                        worksheet.insert_image(start_row, index + 1, image_output_path, {'x_scale': 0.5,'y_scale': 0.5, 'x_offset': 5, 'y_offset': 5,'object_position':1}\
+                            ) if index == 1 else worksheet.write(start_row, index + 1, Data[index], excel_format)
                     pbar.update()
+            header = [{'header': head} for head in Header]
+
+            worksheet.add_table(0, 1, start_row, len(Header), {'columns':header})
+            worksheet.freeze_panes(1,0)
+            worksheet.hide_gridlines(2)
+            workbook.close()
 
             logger.info(f"Confusion matrix of {sub_path}")
             logger.info('\n%s' % confusion_matrix.astype(int))
+    def get_handcraft_feature(self):
+        Data_Path = os.path.join(self.config.DATASET_PATH, "Train\\OriginImage")
+        get_dataframe([Data_Path], self.failClasses)
+      
+    def get_ensemble_model(self):
+        TrainDF_Model = pd.read_pickle("TrainDF_Model.pkl")
+        # if self.binary_option:
+        #     TrainDF_Model['Class'] = ['Reject' if current_class in self.failClasses else current_class for current_class in TrainDF_Model['Class'].tolist()]
+        get_z_score_info(TrainDF_Model)
+        Mean_std_DF = pd.read_pickle("Mean_std_value.pkl")
+        get_z_score(Mean_std_DF, [TrainDF_Model])
 
-    
+        train_data = TrainDF_Model.copy()
+        train_data = train_data.drop("Path", axis=1)
+        data_train, target_train, _, _ = SplitDataFrameToTrainAndTest(train_data, 1, 'Class')
+        X_train = data_train
+        y_train = target_train
+        y_train = [self.classes.index(target) for target in y_train['Class'].tolist()]
+        X_train = X_train.apply(pd.to_numeric, errors = 'coerce')
+        Classifier_ls = [\
+        BaggingClassifier(DecisionTreeClassifier(criterion='entropy', class_weight='balanced', min_samples_split=12), n_estimators=1000, max_samples=0.8, max_features=1.0, random_state=0), \
+        RandomForestClassifier(criterion='entropy', n_estimators=1000, random_state=0, class_weight='balanced', min_samples_split=12, max_samples=0.8), \
+        AdaBoostClassifier(DecisionTreeClassifier(criterion='entropy', class_weight='balanced', min_samples_split=12), n_estimators=2000, learning_rate=1.0, random_state=0), \
+        XGBClassifier( n_estimators=200, random_state=0, learning_rate=0.3, tree_method='gpu_hist', gpu_id=0),\
+        ]
+        self.ensemble_model = VotingClassifier(estimators=[('bg', Classifier_ls[0]), ('rf',Classifier_ls[1]),('ada',Classifier_ls[2]),('xgb',Classifier_ls[3])], voting='soft', weights=[1,1,1,1])
+        # print(TrainDF_Model.head())
+        self.ensemble_model.fit(X_train, y_train)
+
+    def get_feature_one(self, img):
+        feature_dataframe = get_dataframe_one(img)
+        Mean_std_DF = pd.read_pickle("Mean_std_value.pkl")
+        get_z_score(Mean_std_DF, [feature_dataframe])
+        features_data = feature_dataframe.copy()
+        X_data = features_data
+        X_data = X_data.apply(pd.to_numeric, errors = 'coerce')
+        # print(f"X_data:\n{X_data}")
+        return X_data
+
+    def ensemble_prediction(self, input_feature):
+        pred_score = self.ensemble_model.predict_proba(input_feature)
+        return pred_score
     @staticmethod
     def loss_func(class_weight):
         # TODO: change loss function to be more dynamic

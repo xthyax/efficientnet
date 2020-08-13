@@ -13,10 +13,10 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import argparse
 
-from efficientnet_module.modules import config_loader
-from efficientnet_module.modules.efficientnet_wrapper import EfficientNetWrapper
-from efficientnet_module.modules.utils import load_and_crop
-
+from efficientnet_module import config_loader
+from efficientnet_module.efficientnet_wrapper import EfficientNetWrapper
+from efficientnet_module.utils import load_and_crop
+from fwd9m.tensorflow import enable_determinism
 ###################
 # Global Constant #
 ###################
@@ -24,6 +24,8 @@ from efficientnet_module.modules.utils import load_and_crop
 np.random.seed(1)
 tf.set_random_seed(1)
 random.seed(1)
+enable_determinism(seed=1)
+np.set_printoptions(suppress=True)
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(ROOT_DIR)
@@ -52,6 +54,8 @@ if __name__ == '__main__':
                         help='Path to save predicted images')
     parser.add_argument('--au_list', required=False,
                         help='a list of used augment technique')
+    parser.add_argument('--binary', required=False, default=1, type=int,
+                        help='binary/mutli classification option 1/0')
     args = parser.parse_args()
     colors = [(255,0,0),(255,215,0),(255,140,0),(255,69,0),(0,255,0),(255,255,0),(0,255,255),(0,0,255),]
     if args.command == "train":
@@ -81,7 +85,7 @@ if __name__ == '__main__':
             WEIGHT_PATH = args.weight if args.weight else None
             FAIL_CLASSNAME = param.FAILCLASS_NAME
             PASS_CLASSNAME = param.PASSCLASS_NAME
-            BINARY = True # Hardcode
+            BINARY = bool(args.binary) # Hardcode
 
         config = TrainConfig()
         model = EfficientNetWrapper(config)
@@ -97,6 +101,71 @@ if __name__ == '__main__':
         else:
             pass
         print("\nTrain Done")
+    elif args.command == "ensemble":
+        param = config_loader.LoadConfig(args.config)
+        
+        class InferConfig:
+            NO_EPOCH = param.NO_EPOCH
+            GPU_COUNT = param.NUM_GPU
+            LEARNING_RATE = param.LEANING_RATE
+            LEARNING_MOMENTUM = param.MOMENTUM
+            WEIGHT_DECAY = param.DECAY
+            OPTIMIZER = param.OPTIMIZER
+            NUM_CLASSES = len(param.CLASS_NAME)
+            CLASS_NAME = param.CLASS_NAME
+            INPUT_SIZE = param.CHANGE_BOX_SIZE
+            IMAGES_PER_GPU = param.BATCH_SIZE
+            CLASS_THRESHOLD = param.CLASS_THRESHOLD
+            AU_LIST = param.AUGMENT_LIST
+            if AU_LIST == [] or AU_LIST == None:
+                AU_LIST = None
+            else:
+                AU_LIST = True
+            ARCHITECTURE = param.ARCHITECTURE
+            BATCH_SIZE = param.BATCH_SIZE
+            LOGS_PATH = args.logs
+            DATASET_PATH = args.dataset
+            WEIGHT_PATH = args.weight if args.weight else None
+            FAIL_CLASSNAME = param.FAILCLASS_NAME
+            PASS_CLASSNAME = param.PASSCLASS_NAME
+            BINARY = bool(args.binary)  # Hardcode
+
+        config = InferConfig()
+        model = EfficientNetWrapper(config)
+        model.get_handcraft_feature()
+
+    elif args.command == "testing":
+        param = config_loader.LoadConfig(args.config)
+        
+        class InferConfig:
+            NO_EPOCH = param.NO_EPOCH
+            GPU_COUNT = param.NUM_GPU
+            LEARNING_RATE = param.LEANING_RATE
+            LEARNING_MOMENTUM = param.MOMENTUM
+            WEIGHT_DECAY = param.DECAY
+            OPTIMIZER = param.OPTIMIZER
+            NUM_CLASSES = len(param.CLASS_NAME)
+            CLASS_NAME = param.CLASS_NAME
+            INPUT_SIZE = param.CHANGE_BOX_SIZE
+            IMAGES_PER_GPU = param.BATCH_SIZE
+            CLASS_THRESHOLD = param.CLASS_THRESHOLD
+            AU_LIST = param.AUGMENT_LIST
+            if AU_LIST == [] or AU_LIST == None:
+                AU_LIST = None
+            else:
+                AU_LIST = True
+            ARCHITECTURE = param.ARCHITECTURE
+            BATCH_SIZE = param.BATCH_SIZE
+            LOGS_PATH = args.logs
+            DATASET_PATH = args.dataset
+            WEIGHT_PATH = args.weight if args.weight else None
+            FAIL_CLASSNAME = param.FAILCLASS_NAME
+            PASS_CLASSNAME = param.PASSCLASS_NAME
+            BINARY = bool(args.binary)  # Hardcode
+
+        config = InferConfig()
+        model = EfficientNetWrapper(config)
+        model.prepare_data()
 
     elif args.command == "cm":
         param = config_loader.LoadConfig(args.config)
@@ -125,7 +194,7 @@ if __name__ == '__main__':
             WEIGHT_PATH = args.weight if args.weight else None
             FAIL_CLASSNAME = param.FAILCLASS_NAME
             PASS_CLASSNAME = param.PASSCLASS_NAME
-            BINARY = True # Hardcode
+            BINARY = bool(args.binary)  # Hardcode
 
         config = InferConfig()
         model = EfficientNetWrapper(config)
@@ -159,7 +228,7 @@ if __name__ == '__main__':
             WEIGHT_PATH = args.weight if args.weight else None
             FAIL_CLASSNAME = param.FAILCLASS_NAME
             PASS_CLASSNAME = param.PASSCLASS_NAME
-            BINARY = True # Hardcode
+            BINARY = bool(args.binary) # Hardcode
 
         config = InferConfig()
         model = EfficientNetWrapper(config)

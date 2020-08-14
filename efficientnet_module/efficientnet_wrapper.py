@@ -486,10 +486,12 @@ class EfficientNetWrapper:
             worksheet.add_table(0, 1, start_row, len(Header), {'columns':header})
             worksheet.freeze_panes(1,0)
             worksheet.hide_gridlines(2)
-            workbook.close()
+            
 
             print(f"Confusion matrix of {sub_path}")
             print('\n%s' % confusion_matrix.astype(int))
+
+        workbook.close()
     def get_handcraft_feature(self):
         Data_Path = os.path.join(self.config.DATASET_PATH, "Train\\OriginImage")
         get_dataframe([Data_Path], self.failClasses)

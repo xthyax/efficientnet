@@ -15,7 +15,7 @@ import numpy as np
 # from .config import INPUT_SIZE, ARCHITECTURE, BATCH, DATASET_DIR, Optimizer_
 dash_path = "\\" if os.name =="nt" else "/"
 
-def to_onehot(labels, num_of_classes):
+def to_onehot(labels, num_of_classes, smoothing=0.1):
     if type(labels) is list:
         labels = [int(label) for label in labels]
         arr = np.array(labels, dtype=np.int)
@@ -26,7 +26,9 @@ def to_onehot(labels, num_of_classes):
         onehot = np.zeros((num_of_classes,), dtype=np.int)
         onehot[int(labels)] = 1
 
-    return onehot
+    smoothed_target = onehot * (1 - smoothing) + smoothing / num_of_classes
+
+    return smoothed_target
 
 
 def multi_threshold(Y, thresholds):

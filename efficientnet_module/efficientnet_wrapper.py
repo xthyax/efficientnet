@@ -101,21 +101,9 @@ class EfficientNetWrapper:
     def prepare_data(self):
         # TODO: Merge with Front-end and dev
         train_dir = os.path.join(self.config.DATASET_PATH, 'Train')
-        train_dir = recursive_folder(train_dir)
-        augment_dir = [x for x in train_dir if 'transformimage' in x.lower()]
-        if self.config.AU_LIST:
-            pass
-        else:
-            try:
-                train_dir.remove(augment_dir[0])
-            except IndexError:
-                print("There is nothing to remove")
         val_dir = os.path.join(self.config.DATASET_PATH, 'Validation')
         test_dir = os.path.join(self.config.DATASET_PATH, 'Test')
 
-        train_origin_dir = train_dir.copy()
-        [train_origin_dir.remove(augment_dir[0]) if (len(augment_dir) > 0) else train_origin_dir]
-        train_origin_dir = train_origin_dir[0]
         # print(f"[DEBUG] Train dir:\n{train_dir}")
         # print(f"[DEBUG] Valdiation dir:\n{val_dir}")
         # print(f"[DEBUG] Test dir:\n{test_dir}")
@@ -124,16 +112,16 @@ class EfficientNetWrapper:
 
         self.train_generator = DataGenerator(train_dir, self.config.BATCH_SIZE,\
             self.classes, self.failClasses, self.passClasses,\
-            self.input_size, self.binary_option, augmentation=self.config.AU_LIST)
-        
-        self.val_generator = DataGenerator(val_dir, self.config.BATCH_SIZE, \
+            self.input_size, self.binary_option, label_smoothing=0.1, augmentation=self.config.AU_LIST)
+
+        self.val_generator = DataGenerator(val_dir, self.config.BATCH_SIZE,\
             self.classes, self.failClasses, self.passClasses,\
             self.input_size, self.binary_option)
         self.test_generator = DataGenerator(test_dir, self.config.BATCH_SIZE, \
             self.classes, self.failClasses, self.passClasses,\
             self.input_size, self.binary_option)
 
-        self.evaluate_generator = DataGenerator([train_origin_dir, val_dir, test_dir], self.config.BATCH_SIZE,\
+        self.evaluate_generator = DataGenerator([train_dir, val_dir, test_dir], self.config.BATCH_SIZE,\
             self.classes, self.failClasses, self.passClasses, \
             self.input_size, self.binary_option)
 

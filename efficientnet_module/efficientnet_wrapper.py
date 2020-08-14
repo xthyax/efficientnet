@@ -31,7 +31,6 @@ from .callbacks import SGDLearningRateTracker
 import glob
 import tqdm
 import itertools
-from loguru import logger
 import shutil
 import xlsxwriter
 
@@ -139,18 +138,22 @@ class EfficientNetWrapper:
             self.input_size, self.binary_option)
 
         self.class_weights = compute_class_weight(self.train_generator.metadata.values())
-        x_data, y_data = self.train_generator[0]
-        print(len(x_data))
-    def lossFunc_chosen(self, option):
-        try:
-            loss_dict = {
-                'binary': 'binary_crossentropy',
-                'category' : 'categorical_crossentropy',
-                'focal' : EfficientNetWrapper.loss_func(self.class_weights)
-            }[option]
-            return loss_dict
-        except KeyError:
-            raise ValueError("Invalid loss function")
+
+    def lossFunc_chosen(self):
+        if len(self.classes) > 2 :
+            return keras.losses.categorical_crossentropy
+        else:
+            return keras.losses.binary_crossentropy
+
+        # try:
+        #     loss_dict = {
+        #         'binary': 'binary_crossentropy',
+        #         'category' : 'categorical_crossentropy',
+        #         'focal' : EfficientNetWrapper.loss_func(self.class_weights)
+        #     }[option]
+        #     return loss_dict
+        # except KeyError:
+        #     raise ValueError("Invalid loss function")
 
     def load_classes(self):
         if self.binary_option:
@@ -211,7 +214,7 @@ class EfficientNetWrapper:
         # my_callback = ModelCheckpoint(train_checkpoint_dir + '/ep{epoch:04d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5', monitor='val_loss', save_best_only=False, save_weights_only=False)
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
 
-        model.compile(optimizer=optimizer, loss=self.lossFunc_chosen('binary'), metrics=['accuracy'])
+        model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
         model.fit_generator(self.train_generator, epochs=self.config.EPOCH, validation_data=self.val_generator, max_queue_size=10,
                             workers=1, callbacks=[checkpoint_callback, tensorboard_callback])
 
@@ -228,7 +231,7 @@ class EfficientNetWrapper:
         # X_data = self.get_feature_one(img)
         # ensemble_prop = self.ensemble_prediction(X_data)
         # ===================================================
-        print(f"[DEBUG] ensemble propability : {ensemble_prop[0]}")
+        # print(f"[DEBUG] ensemble propability : {ensemble_prop[0]}")
         with self.graph.as_default():
             with self.session.as_default():
                 Y = self.keras_model.predict(X)
@@ -251,7 +254,7 @@ class EfficientNetWrapper:
         Y_class_name = self.id_class_mapping[Y_class_id[0]]
         # print(f"[DEBUG] Y_class_id: {Y_class_id}")
         # print(f"[DEBUG] Y_score: {Y_score}")
-        print(f"[DEBUG] all scores: {Y[0]}")
+        # print(f"[DEBUG] all scores: {Y[0]}")
         if return_all :
             return Y[0]
         else:
@@ -260,7 +263,7 @@ class EfficientNetWrapper:
     def evaluate(self, subset='test'):
         # TODO: make evaluate for all set instead of just test set
         optimizer = self.optimizer_chosen()
-        self.keras_model.compile(optimizer=optimizer, loss=EfficientNetWrapper.loss_func(self.class_weights), metrics=['accuracy'])
+        self.keras_model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
         # self.keras_model.compile(optimizer='SGD', loss='categorical_crossentropy', metrics=['accuracy'])
         subset_generator = {'train': self.train_generator, 'val': self.val_generator, 'test': self.test_generator}[
             subset]
@@ -280,7 +283,7 @@ class EfficientNetWrapper:
         # train
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=self.config.LOGS_PATH)
         custom_callback = CustomCallback(tensorboard_callback,\
-            self.evaluate_generator, self.classes, self.failClasses, self.passClasses)
+            self.evaluate_generator, self.classes, ['Reject'], ['Pass'])
 
 
         if self.config.GPU_COUNT > 1:
@@ -292,7 +295,7 @@ class EfficientNetWrapper:
         
         optimizer = self.optimizer_chosen()
 
-        model.compile(optimizer=optimizer, loss=self.lossFunc_chosen('binary'), metrics=['accuracy'])
+        model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
         # model.compile(optimizer='SGD', loss='categorical_crossentropy', metrics=['accuracy'])
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, self.config.LOGS_PATH)
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
@@ -485,8 +488,8 @@ class EfficientNetWrapper:
             worksheet.hide_gridlines(2)
             workbook.close()
 
-            logger.info(f"Confusion matrix of {sub_path}")
-            logger.info('\n%s' % confusion_matrix.astype(int))
+            print(f"Confusion matrix of {sub_path}")
+            print('\n%s' % confusion_matrix.astype(int))
     def get_handcraft_feature(self):
         Data_Path = os.path.join(self.config.DATASET_PATH, "Train\\OriginImage")
         get_dataframe([Data_Path], self.failClasses)

@@ -30,8 +30,8 @@ class CustomCallback(keras.callbacks.Callback):
         self.pass_classes_index = [list_classes.index(class_) for class_ in pass_classes]
 
     def on_epoch_end(self, epoch, logs=None):
-        # Underkill rate := FN / (TP + FN)
-        # Overkill rate := FP / (TN + FP)
+        # False Negative rate := FN / (TP + FN)
+        # False Positive rate := FP / (TN + FP)
         param = {
             "FN": 0,
             "TP": 0,
@@ -65,15 +65,15 @@ class CustomCallback(keras.callbacks.Callback):
                     else:
                         param['FP'] += 1
 
-        Underkill_rate = param['FN'] / (param['TP'] + param['FN'])
-        Overkill_rate = param['FP'] / (param['TN'] + param['FP'])
+        FN_rate = param['FN'] / (param['TP'] + param['FN'])
+        FP_rate = param['FP'] / (param['TN'] + param['FP'])
 
-        print(f"Underkill rate: {Underkill_rate} %")
-        print(f"Overkill rate: {Overkill_rate} %")
+        print(f"Underkill rate: {FN_rate} %")
+        print(f"Overkill rate: {FP_rate} %")
 
         items_to_write={
-            "Underkill_rate": Underkill_rate,
-            "Overkill_rate": Overkill_rate
+            "False Negative rate": FN_rate,
+            "False Positive rate": FP_rate
         }
         writer = self.tb_callback.writer
         for name, value in items_to_write.items():

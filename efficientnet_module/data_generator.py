@@ -29,7 +29,7 @@ class DataGenerator(Sequence):
         self.crop = crop
         self.num_of_classes = len(self.classes)
         self.img_path_labels = self.load_data()
-        self.metadata = metadata_count(self.input_dir, self.classes, self.gt_list, show_table=False) # toggle show_table when dev model only
+        self.metadata = metadata_count(self.input_dir, self.classes, self.gt_list, show_table=True) # toggle show_table when dev model only
         self.augmentation = augmentation
         # if augmentation:
         #     self.augmentation = lambda x: x

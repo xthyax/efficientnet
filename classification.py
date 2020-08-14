@@ -75,9 +75,9 @@ if __name__ == '__main__':
             THRESHOLDS = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = None
+                AU_LIST = False
             else:
-                AU_LIST = True
+                AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
             BATCH_SIZE = param.BATCH_SIZE
             LOGS_PATH = args.logs
@@ -118,9 +118,9 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = None
+                AU_LIST = False
             else:
-                AU_LIST = True
+                AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
             BATCH_SIZE = param.BATCH_SIZE
             LOGS_PATH = args.logs
@@ -151,9 +151,9 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = None
+                AU_LIST = False
             else:
-                AU_LIST = True
+                AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
             BATCH_SIZE = param.BATCH_SIZE
             LOGS_PATH = args.logs
@@ -184,9 +184,9 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = None
+                AU_LIST = False
             else:
-                AU_LIST = True
+                AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
             BATCH_SIZE = param.BATCH_SIZE
             LOGS_PATH = args.logs
@@ -218,9 +218,9 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = None
+                AU_LIST = False
             else:
-                AU_LIST = True
+                AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
             BATCH_SIZE = param.BATCH_SIZE
             LOGS_PATH = args.logs

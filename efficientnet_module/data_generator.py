@@ -11,7 +11,7 @@ import glob
 
 class DataGenerator(Sequence):
     def __init__(self, input_dir, batch_size, classes, failClasses, passClasses, input_size,\
-        binary_option=False, label_smoothing=0., crop=True, augmentation=None):
+        binary_option=False, crop=True, augmentation=None):
 
         if isinstance(input_dir, list):
             self.input_dir = input_dir
@@ -64,7 +64,7 @@ class DataGenerator(Sequence):
                     else:
                         id_image = json_data['classId'][0]
                     self.gt_list.append(id_image)
-                    img_path_labels.append((img_path, to_onehot(self.classes.index(id_image), self.num_of_classes, self.label_smoothing)) )
+                    img_path_labels.append((img_path, to_onehot(self.classes.index(id_image), self.num_of_classes)) )
                 except:
                     print(f"-Missing {json_path}")
         # print(f"[DEBUG] {img_path_labels}")

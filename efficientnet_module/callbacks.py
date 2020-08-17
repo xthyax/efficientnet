@@ -65,8 +65,8 @@ class CustomCallback(keras.callbacks.Callback):
                     else:
                         param['FP'] += 1
 
-        FN_rate = param['FN'] / (param['TP'] + param['FN'])
-        FP_rate = param['FP'] / (param['TN'] + param['FP'])
+        FN_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
+        FP_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
 
         print(f"Underkill rate: {FN_rate} %")
         print(f"Overkill rate: {FP_rate} %")

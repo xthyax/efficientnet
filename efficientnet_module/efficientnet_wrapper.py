@@ -100,28 +100,35 @@ class EfficientNetWrapper:
 
     def prepare_data(self):
         # TODO: Merge with Front-end and dev
-        train_dir = os.path.join(self.config.DATASET_PATH, 'Train')
-        val_dir = os.path.join(self.config.DATASET_PATH, 'Validation')
-        test_dir = os.path.join(self.config.DATASET_PATH, 'Test')
-
-        # print(f"[DEBUG] Train dir:\n{train_dir}")
-        # print(f"[DEBUG] Valdiation dir:\n{val_dir}")
-        # print(f"[DEBUG] Test dir:\n{test_dir}")
 
         self.load_classes()
 
-        self.train_generator = DataGenerator(train_dir, self.config.BATCH_SIZE,\
-            self.classes, self.failClasses, self.passClasses,\
-            self.input_size, self.binary_option, label_smoothing=0.1, augmentation=self.config.AU_LIST)
+        list_Directory = [
+            os.path.join(self.config.DATASET_PATH, 'Train'),
+            os.path.join(self.config.DATASET_PATH, 'Validation'),
+            os.path.join(self.config.DATASET_PATH, 'Test'),
+        ]
 
-        self.val_generator = DataGenerator(val_dir, self.config.BATCH_SIZE,\
-            self.classes, self.failClasses, self.passClasses,\
-            self.input_size, self.binary_option)
-        self.test_generator = DataGenerator(test_dir, self.config.BATCH_SIZE, \
-            self.classes, self.failClasses, self.passClasses,\
-            self.input_size, self.binary_option)
+        list_Generator = []
+        for diRectory in list_Directory:
+            if os.path.exists(diRectory) and len(os.listdir(diRectory)) > 0:
+                generator = DataGenerator(diRectory, self.config.BATCH_SIZE,\
+                    self.classes, self.failClasses, self.passClasses,\
+                    self.input_size, self.binary_option, augmentation=self.config.AU_LIST if "train" in diRectory else None )
+            
+            elif not os.path.exists(diRectory):
+                print(f"Missing {diRectory}")
+            
+            elif len(os.listdir(diRectory)) == 0:
+                print(f"Empty {diRectory}")
 
-        self.evaluate_generator = DataGenerator([train_dir, val_dir, test_dir], self.config.BATCH_SIZE,\
+            list_Generator.append(generator)
+
+        self.train_generator = list_Generator[0] if 0 in range(len(list_Generator)) else None
+        self.val_generator = list_Generator[1] if 1 in range(len(list_Generator)) else None
+        self.test_generator = list_Generator[2] if 2 in range(len(list_Generator)) else None
+
+        self.evaluate_generator = DataGenerator(list_Directory, self.config.BATCH_SIZE,\
             self.classes, self.failClasses, self.passClasses, \
             self.input_size, self.binary_option)
 
@@ -271,7 +278,9 @@ class EfficientNetWrapper:
         # train
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=self.config.LOGS_PATH)
         custom_callback = CustomCallback(tensorboard_callback,\
-            self.evaluate_generator, self.classes, ['Reject'], ['Pass'])
+            self.evaluate_generator, self.classes,\
+            ['Reject'] if self.binary_option else self.failClasses, \
+            ['Pass'] if self.binary_option else self.passClasses)
 
 
         if self.config.GPU_COUNT > 1:

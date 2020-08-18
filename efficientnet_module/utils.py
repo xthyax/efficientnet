@@ -85,11 +85,10 @@ def flatten_list(list_):
 
 def metadata_count(dir, classes, gt_list, show_table=True):
     test_dir = dir if isinstance(dir,list) else [dir]
-    class_list = list(dict.fromkeys(gt_list))
 
     Table = PrettyTable()
     Table.field_names = ['Defect', 'Number of images']
-    count_class = [0] * len(class_list)
+    count_class = [0] * len(classes)
     for i in range(len(gt_list)):
         for j in range(len(classes)):
             if gt_list[i] == classes[j]:

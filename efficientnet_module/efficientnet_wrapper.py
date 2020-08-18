@@ -66,6 +66,7 @@ class EfficientNetWrapper:
         self.ensemble_model = None
 
     def _build_model(self):
+        initializer = keras.initializers.glorot_uniform(seed=1)
         try:
             model_class = {
                 'B0': EfficientNetB0,
@@ -94,7 +95,8 @@ class EfficientNetWrapper:
                 layer.trainable = not freeze
 
         x = keras.layers.GlobalAveragePooling2D()(base_model.output)
-        output = keras.layers.Dense(self.num_of_classes, activation='softmax')(x)
+        output = keras.layers.Dense(self.num_of_classes, activation='softmax',\
+            kernel_initializer=initializer)(x)
         
         return keras.models.Model(inputs=[base_model.input], outputs=[output])
 

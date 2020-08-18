@@ -110,23 +110,24 @@ class EfficientNetWrapper:
         ]
 
         list_Generator = []
+        for diRectory in list_Directory.copy():
+            if not os.path.exists(diRectory) or len(os.listdir(diRectory)) == 0:
+                list_Directory.remove(diRectory)
+
         for diRectory in list_Directory:
-            if os.path.exists(diRectory) and len(os.listdir(diRectory)) > 0:
-                generator = DataGenerator(diRectory, self.config.BATCH_SIZE,\
-                    self.classes, self.failClasses, self.passClasses,\
-                    self.input_size, self.binary_option, augmentation=self.config.AU_LIST if "train" in diRectory else None )
-            
-            elif not os.path.exists(diRectory):
-                print(f"Missing {diRectory}")
-            
-            elif len(os.listdir(diRectory)) == 0:
-                print(f"Empty {diRectory}")
-
+            generator = DataGenerator(diRectory, self.config.BATCH_SIZE,\
+                self.classes, self.failClasses, self.passClasses,\
+                self.input_size, self.binary_option, augmentation=self.config.AU_LIST if "train" in diRectory else None )
+        
             list_Generator.append(generator)
-
-        self.train_generator = list_Generator[0] if 0 in range(len(list_Generator)) else None
-        self.val_generator = list_Generator[1] if 1 in range(len(list_Generator)) else None
-        self.test_generator = list_Generator[2] if 2 in range(len(list_Generator)) else None
+        check_train = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "train" in set_path.lower()]]]
+        self.train_generator = check_train[0] if len(check_train) > 0 else None
+        
+        check_val = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "validate" in set_path.lower()]]]
+        self.val_generator = check_val[0] if len(check_val) > 0 else None
+        
+        check_test = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "test" in set_path.lower()]]]
+        self.test_generator = check_test[0] if len(check_test) > 0 else None
 
         self.evaluate_generator = DataGenerator(list_Directory, self.config.BATCH_SIZE,\
             self.classes, self.failClasses, self.passClasses, \

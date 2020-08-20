@@ -26,7 +26,6 @@ from .utils import multi_threshold, recursive_glob, compute_class_weight, recurs
 from .focal_loss import focal_loss
 # from efficientnet_module.modules.config import Optimizer_, FREEZE
 # from efficientnet_module.modules import config
-from .callbacks import SGDLearningRateTracker
 
 import glob
 import tqdm
@@ -39,7 +38,7 @@ from xgboost import XGBClassifier
 from sklearn.ensemble import *
 from sklearn.neighbors import *
 from sklearn.tree import *
-
+from tensorboardX import SummaryWriter
 from keras.callbacks import ModelCheckpoint
 
 class EfficientNetWrapper:
@@ -125,7 +124,7 @@ class EfficientNetWrapper:
         check_train = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "train" in set_path.lower()]]]
         self.train_generator = check_train[0] if len(check_train) > 0 else None
         
-        check_val = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "validate" in set_path.lower()]]]
+        check_val = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "validation" in set_path.lower()]]]
         self.val_generator = check_val[0] if len(check_val) > 0 else None
         
         check_test = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "test" in set_path.lower()]]]
@@ -271,7 +270,7 @@ class EfficientNetWrapper:
 
     def resume_training(self):
         epoch = 0
-
+        train_checkpoint_dir = self.config.LOGS_PATH
         if "startingmodel.h5" in self.config.WEIGHT_PATH:
             self.keras_model = self._build_model()
             self.load_classes()
@@ -279,11 +278,18 @@ class EfficientNetWrapper:
             self.load_weight()
 
         # train
-        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=self.config.LOGS_PATH)
-        custom_callback = CustomCallback(tensorboard_callback,\
+        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=train_checkpoint_dir)
+        
+        writer = SummaryWriter(log_dir=train_checkpoint_dir)
+        custom_callback = CustomCallback(writer ,\
             self.evaluate_generator, self.classes,\
             ['Reject'] if self.binary_option else self.failClasses, \
             ['Pass'] if self.binary_option else self.passClasses)
+
+        # custom_callback = CustomCallback(tensorboard_callback,\
+        #     self.evaluate_generator, self.classes, \
+        #     ['Reject'] if self.binary_option else self.failClasses, \
+        #     ['Pass'] if self.binary_option else self.passClasses)
 
 
         if self.config.GPU_COUNT > 1:
@@ -296,11 +302,12 @@ class EfficientNetWrapper:
         optimizer = self.optimizer_chosen()
 
         model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
-        # model.compile(optimizer='SGD', loss='categorical_crossentropy', metrics=['accuracy'])
-        checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, self.config.LOGS_PATH)
+
+        checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
                             max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
                             initial_epoch=epoch)
+
 
     def labelling_raw_data(self):
         path = [
@@ -492,6 +499,84 @@ class EfficientNetWrapper:
             print('\n%s' % confusion_matrix.astype(int))
 
         workbook.close()
+    def checking_models(self):
+        model_path_ls = []
+        
+        for path_trained_model in glob.glob(os.path.join(self.config.WEIGHT_PATH, "*.h5")):
+            model_path_ls.append(path_trained_model)
+
+        fail_ls_class =  ['Reject'] if self.binary_option else self.failClasses
+        pass_ls_class = ['Pass'] if self.binary_option else self.passClasses
+
+        model_info = {
+                "path": [],
+                "model_name": [],
+                "Underkill_rate": [],
+                "Overkill_rate": []
+            }
+        min_OK_rate = 100
+        for trained_model in model_path_ls:
+            self.config.WEIGHT_PATH = trained_model
+        
+            self.load_weight()
+            fail_class_index = [self.classes.index(item_class) for item_class in fail_ls_class]
+            pass_class_index = [self.classes.index(item_class) for item_class in pass_ls_class]
+            
+            param = {
+                "FN": 0,
+                "TP": 0,
+                "FP": 0,
+                "TN": 0
+            }
+            
+            print("====================================")
+            print(f"Testing model : {self.config.WEIGHT_PATH}.....")
+            
+
+            for _, sample in enumerate(self.evaluate_generator):
+                x_data, y_data = sample
+                
+                with self.graph.as_default():
+                    with self.session.as_default():
+                        x_result = self.keras_model.predict(x_data)
+
+                predict_classes = x_result.argmax(axis=-1)
+
+                for i in range(len(x_data)):
+                    # Check groundtruth
+                    y_current = y_data[i].tolist()
+
+                    if y_current.index(1) in fail_class_index:
+                        if predict_classes[i] == y_current.index(1)\
+                            or predict_classes[i] in fail_class_index:
+                            param['TP'] += 1
+                        else:
+                            param['FN'] += 1
+                    else:
+                        if predict_classes[i] == y_current.index(1)\
+                            or predict_classes[i] in pass_class_index:
+                            param['TN'] += 1
+                        else:
+                            param['FP'] += 1
+
+            UK_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
+            OK_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
+
+            print(f"Underkill rate: {UK_rate} %")
+            print(f"Overkill rate: {OK_rate} %")
+            print("====================================")
+            print("\n")
+            if UK_rate == 0.0 and OK_rate <= min_OK_rate:
+                # os.path.join(*(x.split(os.path.sep)[2:]))
+                model_info["path"] = os.path.join(*(self.config.WEIGHT_PATH.split("\\")[:-1]))
+                model_info["model_name"] = [self.config.WEIGHT_PATH.split("\\")[-1]]
+                model_info['Underkill_rate'] = [UK_rate]
+                model_info['Overkill_rate'] = [OK_rate]
+                min_OK_rate = OK_rate
+
+        with open("model_info.json", "w") as model_json:
+            json.dump(model_info, model_json)
+
     def get_handcraft_feature(self):
         Data_Path = os.path.join(self.config.DATASET_PATH, "Train\\OriginImage")
         get_dataframe([Data_Path], self.failClasses)

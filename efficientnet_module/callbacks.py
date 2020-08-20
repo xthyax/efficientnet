@@ -13,8 +13,9 @@ class SaveMultiGPUModelCheckpoint(keras.callbacks.Callback):
 
 
 class CustomCallback(keras.callbacks.Callback):
-    def __init__(self, tb_callback, test_data, list_classes, fail_classes, pass_classes):
-        self.tb_callback = tb_callback
+    def __init__(self, writer,test_data, list_classes, fail_classes, pass_classes):
+        # self.tb_callback = tb_callback
+        self.writer = writer
         self.test_data = test_data
         self.classes = list_classes
         self.fail_classes_index = [list_classes.index(class_) for class_ in fail_classes]
@@ -30,7 +31,7 @@ class CustomCallback(keras.callbacks.Callback):
             "TN": 0
         }
         print("====================================")
-        print("Calculating Underkill/Overkill rate.....")
+        print("Calculating FN/FP rate.....")
         print("====================================")
         for _, sample in enumerate(self.test_data):
             x_data, y_data = sample
@@ -66,11 +67,20 @@ class CustomCallback(keras.callbacks.Callback):
             "False Negative rate": FN_rate,
             "False Positive rate": FP_rate
         }
-        writer = self.tb_callback.writer
-        for name, value in items_to_write.items():
-            summary = tf.compat.v1.summary.Summary()
-            summary_value = summary.value.add()
-            summary_value.simple_value = value
-            summary_value.tag = name 
-            writer.add_summary(summary, epoch)
-            writer.flush()
+
+        self.writer.add_scalars("Custom_metric",{list(items_to_write)[0]: items_to_write[list(items_to_write)[0]],\
+                                                list(items_to_write)[1]: items_to_write[list(items_to_write)[1]]}, epoch)
+
+        self.writer.flush()
+
+        # writer = self.tb_callback.writer
+        # for name, value in items_to_write.items():
+        #     summary = tf.compat.v1.summary.Summary()
+        #     summary_value = summary.value.add()
+        #     summary_value.simple_value = value
+        #     summary_value.tag = name 
+        #     writer.add_summary(summary, epoch)
+        #     writer.flush()
+
+    def on_train_end(self, logs=None):
+        self.writer.close()

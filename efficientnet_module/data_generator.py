@@ -25,7 +25,6 @@ class DataGenerator(Sequence):
         self.batch_size = batch_size
         self.classes = self.load_classes(classes)
         self.input_size = input_size
-        self.label_smoothing = label_smoothing
         self.crop = crop
         self.num_of_classes = len(self.classes)
         self.img_path_labels = self.load_data()

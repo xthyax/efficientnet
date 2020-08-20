@@ -8,12 +8,37 @@ import cv2
 import pandas as pd
 from tqdm.autonotebook import tqdm
 from skimage.util import img_as_ubyte
-
+from gpuinfo import GPUInfo
 # from PIL import Image
 
 import numpy as np
 # from .config import INPUT_SIZE, ARCHITECTURE, BATCH, DATASET_DIR, Optimizer_
 dash_path = "\\" if os.name =="nt" else "/"
+
+def set_GPU(num_of_GPUs):
+
+    current_memory_gpu = GPUInfo.gpu_usage()[1]
+    list_available_gpu = np.where(np.array(current_memory_gpu) < 1000)[0].astype('str').tolist()
+    current_available_gpu = ",".join(list_available_gpu)
+    if len(list_available_gpu) < num_of_GPUs:
+        print("==============Warning==============")
+        print("Your process had been terminated")
+        print("Please decrease number of gpus you using")
+        print(f"number of Devices available:\t{len(list_available_gpu)} gpu(s)")
+        print(f"number of Device will use:\t{num_of_GPUs} gpu(s)")
+        sys.exit()
+    elif len(list_available_gpu) > num_of_GPUs:
+        redundant_gpu = len(list_available_gpu) - num_of_GPUs
+        current_available_gpu = current_available_gpu[:-redundant_gpu]
+        print("***********************************************")
+        print(f"You are using GPU(s): {current_available_gpu}")
+        print("***********************************************")
+        os.environ["CUDA_VISIBLE_DEVICES"] = current_available_gpu
+    else: 
+        print("***********************************************")
+        print(f"You are using GPU(s): {current_available_gpu}")
+        print("***********************************************")
+        os.environ["CUDA_VISIBLE_DEVICES"] = current_available_gpu
 
 def to_onehot(labels, num_of_classes):
     if type(labels) is list:
@@ -26,7 +51,7 @@ def to_onehot(labels, num_of_classes):
         onehot = np.zeros((num_of_classes,), dtype=np.int)
         onehot[int(labels)] = 1
 
-    return smoothed_target
+    return onehot
 
 
 def multi_threshold(Y, thresholds):

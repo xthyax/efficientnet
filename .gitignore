@@ -109,3 +109,4 @@ export_excel_result.py
 *.pkl
 *.json
 *.DESKTOP-VDP5TCK
+*.h5

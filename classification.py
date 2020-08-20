@@ -15,7 +15,7 @@ import argparse
 
 from efficientnet_module import config_loader
 from efficientnet_module.efficientnet_wrapper import EfficientNetWrapper
-from efficientnet_module.utils import load_and_crop
+from efficientnet_module.utils import load_and_crop, set_GPU
 from fwd9m.tensorflow import enable_determinism
 ###################
 # Global Constant #
@@ -88,18 +88,19 @@ if __name__ == '__main__':
             BINARY = bool(args.binary) # Hardcode
 
         config = TrainConfig()
+        set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.prepare_data()
-        _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
-        if _init_t.lower() == "y":
+        # _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
+        # if _init_t.lower() == "y":
 
-            if config.WEIGHT_PATH:
-                model.resume_training()
-            else:
-                model.train()
-
+        if config.WEIGHT_PATH:
+            model.resume_training()
         else:
-            pass
+            model.train()
+
+        # else:
+        #     pass
         print("\nTrain Done")
     elif args.command == "ensemble":
         param = config_loader.LoadConfig(args.config)
@@ -139,7 +140,7 @@ if __name__ == '__main__':
         
         class InferConfig:
             NO_EPOCH = param.NO_EPOCH
-            GPU_COUNT = param.NUM_GPU
+            GPU_COUNT = 1
             LEARNING_RATE = param.LEANING_RATE
             LEARNING_MOMENTUM = param.MOMENTUM
             WEIGHT_DECAY = param.DECAY
@@ -164,15 +165,17 @@ if __name__ == '__main__':
             BINARY = bool(args.binary)  # Hardcode
 
         config = InferConfig()
+        set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.prepare_data()
+        model.checking_models()
 
     elif args.command == "cm":
         param = config_loader.LoadConfig(args.config)
         
         class InferConfig:
             NO_EPOCH = param.NO_EPOCH
-            GPU_COUNT = param.NUM_GPU
+            GPU_COUNT = 1
             LEARNING_RATE = param.LEANING_RATE
             LEARNING_MOMENTUM = param.MOMENTUM
             WEIGHT_DECAY = param.DECAY
@@ -197,6 +200,7 @@ if __name__ == '__main__':
             BINARY = bool(args.binary)  # Hardcode
 
         config = InferConfig()
+        set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.load_weight()
         model.confusion_matrix_evaluate()
@@ -206,7 +210,7 @@ if __name__ == '__main__':
         
         class InferConfig:
             NO_EPOCH = param.NO_EPOCH
-            GPU_COUNT = param.NUM_GPU
+            GPU_COUNT = 1
             LEARNING_RATE = param.LEANING_RATE
             LEARNING_MOMENTUM = param.MOMENTUM
             WEIGHT_DECAY = param.DECAY
@@ -231,6 +235,7 @@ if __name__ == '__main__':
             BINARY = bool(args.binary) # Hardcode
 
         config = InferConfig()
+        set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.load_weight()
         model.labelling_raw_data()
@@ -241,7 +246,7 @@ if __name__ == '__main__':
 
         class TestConfig:
             NO_EPOCH = param.NO_EPOCH
-            GPU_COUNT = param.NUM_GPU
+            GPU_COUNT = 1
             LEARNING_RATE = param.LEANING_RATE
             LEARNING_MOMENTUM = param.MOMENTUM
             WEIGHT_DECAY = param.DECAY
@@ -260,6 +265,7 @@ if __name__ == '__main__':
 
 
         config = TestConfig()
+        set_GPU(config.GPU_COUNT)
         test_dir = os.path.join(config.DATASET_PATH, 'Test')
         model = EfficientNetWrapper(config)
         model.load_weight()

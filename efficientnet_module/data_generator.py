@@ -63,7 +63,7 @@ class DataGenerator(Sequence):
                     else:
                         id_image = json_data['classId'][0]
                     self.gt_list.append(id_image)
-                    img_path_labels.append((img_path, to_onehot(self.classes.index(id_image), self.num_of_classes)) )
+                    img_path_labels.append((img_path, to_onehot(self.classes.index(id_image), self.num_of_classes)))
                 except:
                     print(f"-Missing {json_path}")
         # print(f"[DEBUG] {img_path_labels}")

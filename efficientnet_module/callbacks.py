@@ -57,15 +57,15 @@ class CustomCallback(keras.callbacks.Callback):
                     else:
                         param['FP'] += 1
 
-        FN_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
-        FP_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
+        UK_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
+        OK_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
 
-        print(f"Underkill rate: {FN_rate} %")
-        print(f"Overkill rate: {FP_rate} %")
+        print(f"Underkill rate: {UK_rate} %")
+        print(f"Overkill rate: {OK_rate} %")
 
         items_to_write={
-            "False Negative rate": FN_rate,
-            "False Positive rate": FP_rate
+            "Undekill rate": UK_rate,
+            "Overkill rate": OK_rate
         }
 
         self.writer.add_scalars("Custom_metric",{list(items_to_write)[0]: items_to_write[list(items_to_write)[0]],\

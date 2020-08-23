@@ -532,47 +532,46 @@ class EfficientNetWrapper:
             print("====================================")
             print(f"Testing model : {self.config.WEIGHT_PATH}.....")
             
-
-            for _, sample in enumerate(self.evaluate_generator):
-                x_data, y_data = sample
-                
-                with self.graph.as_default():
-                    with self.session.as_default():
+            with self.graph.as_default():
+                with self.session.as_default():
+                    for _, sample in enumerate(self.evaluate_generator):
+                        x_data, y_data = sample
+                        
                         x_result = self.keras_model.predict(x_data)
 
-                predict_classes = x_result.argmax(axis=-1)
+                        predict_classes = x_result.argmax(axis=-1)
 
-                for i in range(len(x_data)):
-                    # Check groundtruth
-                    y_current = y_data[i].tolist()
+                        for i in range(len(x_data)):
+                            # Check groundtruth
+                            y_current = y_data[i].tolist()
 
-                    if y_current.index(1) in fail_class_index:
-                        if predict_classes[i] == y_current.index(1)\
-                            or predict_classes[i] in fail_class_index:
-                            param['TP'] += 1
-                        else:
-                            param['FN'] += 1
-                    else:
-                        if predict_classes[i] == y_current.index(1)\
-                            or predict_classes[i] in pass_class_index:
-                            param['TN'] += 1
-                        else:
-                            param['FP'] += 1
+                            if y_current.index(1) in fail_class_index:
+                                if predict_classes[i] == y_current.index(1)\
+                                    or predict_classes[i] in fail_class_index:
+                                    param['TP'] += 1
+                                else:
+                                    param['FN'] += 1
+                            else:
+                                if predict_classes[i] == y_current.index(1)\
+                                    or predict_classes[i] in pass_class_index:
+                                    param['TN'] += 1
+                                else:
+                                    param['FP'] += 1
 
-            UK_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
-            OK_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
+                    UK_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
+                    OK_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
 
-            print(f"Underkill rate: {UK_rate} %")
-            print(f"Overkill rate: {OK_rate} %")
-            print("====================================")
-            print("\n")
-            if UK_rate == 0.0 and OK_rate <= min_OK_rate:
-                # os.path.join(*(x.split(os.path.sep)[2:]))
-                model_info["path"] = os.path.join(*(self.config.WEIGHT_PATH.split("\\")[:-1]))
-                model_info["model_name"] = [self.config.WEIGHT_PATH.split("\\")[-1]]
-                model_info['Underkill_rate'] = [UK_rate]
-                model_info['Overkill_rate'] = [OK_rate]
-                min_OK_rate = OK_rate
+                    print(f"Underkill rate: {UK_rate} %")
+                    print(f"Overkill rate: {OK_rate} %")
+                    print("====================================")
+                    print("\n")
+                    if UK_rate == 0.0 and OK_rate <= min_OK_rate:
+                        # os.path.join(*(x.split(os.path.sep)[2:]))
+                        model_info["path"] = os.path.join(*(self.config.WEIGHT_PATH.split("\\")[:-1]))
+                        model_info["model_name"] = [self.config.WEIGHT_PATH.split("\\")[-1]]
+                        model_info['Underkill_rate'] = [UK_rate]
+                        model_info['Overkill_rate'] = [OK_rate]
+                        min_OK_rate = OK_rate
 
         with open("model_info.json", "w") as model_json:
             json.dump(model_info, model_json)

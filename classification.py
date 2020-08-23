@@ -339,15 +339,19 @@ if __name__ == '__main__':
             if input_command == "quit":
                 break
             image_name = input_command
-            anchors = input("Center point ('256 267 192 192') ")
-            if anchors == "":
-                anchors = "256 256 192 192"
+            center = input("Center point ('256 256') ")
+            if center == "":
+                center = "256 256"
 
             start = time.time()
-            anchors = np.fromstring(anchors, dtype=int, sep=' ')
-            values = np.reshape(anchors, (anchors.shape[0], 1))
-            keys = ['centerX', 'centerY', 'widthBox', 'heightBox']
-            box = dict(zip(keys, values))
+            x_center, y_center = np.fromstring(center, dtype=int, sep=' ')
+            anchor = np.array([
+                x_center - config.INPUT_SIZE / 2,
+                y_center - config.INPUT_SIZE / 2,
+                x_center + config.INPUT_SIZE / 2,
+                y_center + config.INPUT_SIZE / 2,
+                ], dtype=np.int32)
+
             image, _ = load_and_crop(image_name, config.INPUT_SIZE)
 
             try:

@@ -29,7 +29,8 @@ def set_GPU(num_of_GPUs):
         sys.exit()
     elif len(list_available_gpu) > num_of_GPUs:
         redundant_gpu = len(list_available_gpu) - num_of_GPUs
-        current_available_gpu = current_available_gpu[:-redundant_gpu]
+        list_available_gpu = list_available_gpu[redundant_gpu:]
+        current_available_gpu = ",".join(list_available_gpu)
         print("***********************************************")
         print(f"You are using GPU(s): {current_available_gpu}")
         print("***********************************************")

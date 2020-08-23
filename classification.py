@@ -75,7 +75,7 @@ if __name__ == '__main__':
             THRESHOLDS = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
@@ -88,7 +88,7 @@ if __name__ == '__main__':
             BINARY = bool(args.binary) # Hardcode
 
         config = TrainConfig()
-        set_GPU(config.GPU_COUNT)
+        # set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.prepare_data()
         # _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
@@ -119,7 +119,7 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
@@ -152,7 +152,7 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
@@ -163,7 +163,7 @@ if __name__ == '__main__':
             FAIL_CLASSNAME = param.FAILCLASS_NAME
             PASS_CLASSNAME = param.PASSCLASS_NAME
             BINARY = bool(args.binary)  # Hardcode
-
+        
         config = InferConfig()
         set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
@@ -187,7 +187,7 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
@@ -222,7 +222,7 @@ if __name__ == '__main__':
             CLASS_THRESHOLD = param.CLASS_THRESHOLD
             AU_LIST = param.AUGMENT_LIST
             if AU_LIST == [] or AU_LIST == None:
-                AU_LIST = False
+                AU_LIST = None
             else:
                 AU_LIST = param.AUGMENT_LIST
             ARCHITECTURE = param.ARCHITECTURE
@@ -339,19 +339,15 @@ if __name__ == '__main__':
             if input_command == "quit":
                 break
             image_name = input_command
-            center = input("Center point ('256 256') ")
-            if center == "":
-                center = "256 256"
+            anchors = input("Center point ('256 267 192 192') ")
+            if anchors == "":
+                anchors = "256 256 192 192"
 
             start = time.time()
-            x_center, y_center = np.fromstring(center, dtype=int, sep=' ')
-            anchor = np.array([
-                x_center - config.INPUT_SIZE / 2,
-                y_center - config.INPUT_SIZE / 2,
-                x_center + config.INPUT_SIZE / 2,
-                y_center + config.INPUT_SIZE / 2,
-                ], dtype=np.int32)
-
+            anchors = np.fromstring(anchors, dtype=int, sep=' ')
+            values = np.reshape(anchors, (anchors.shape[0], 1))
+            keys = ['centerX', 'centerY', 'widthBox', 'heightBox']
+            box = dict(zip(keys, values))
             image, _ = load_and_crop(image_name, config.INPUT_SIZE)
 
             try:

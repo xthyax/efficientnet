@@ -110,3 +110,4 @@ export_excel_result.py
 *.json
 *.DESKTOP-VDP5TCK
 *.h5
+*.xlsx

@@ -65,7 +65,7 @@ class EfficientNetWrapper:
         self.ensemble_model = None
 
     def _build_model(self):
-        # initializer = keras.initializers.glorot_uniform(seed=1)
+        initializer = keras.initializers.glorot_uniform(seed=1)
         try:
             model_class = {
                 'B0': EfficientNetB0,
@@ -95,7 +95,7 @@ class EfficientNetWrapper:
 
         x = keras.layers.GlobalAveragePooling2D()(base_model.output)
         output = keras.layers.Dense(self.num_of_classes, activation='softmax'\
-            # ,kernel_initializer=initializer\
+            ,kernel_initializer=initializer\
             )(x)
         
         return keras.models.Model(inputs=[base_model.input], outputs=[output])
@@ -119,7 +119,7 @@ class EfficientNetWrapper:
         for diRectory in list_Directory:
             generator = DataGenerator(diRectory, self.config.BATCH_SIZE,\
                 self.classes, self.failClasses, self.passClasses,\
-                self.input_size, self.binary_option, augmentation=self.config.AU_LIST if "train" in diRectory else None )
+                self.input_size, self.binary_option, augmentation=self.config.AU_LIST if "train" in diRectory.lower() else None )
         
             list_Generator.append(generator)
         check_train = [list_Generator[s_value] for s_value in [value for value in [list_Directory.index(set_path) for set_path in list_Directory if "train" in set_path.lower()]]]

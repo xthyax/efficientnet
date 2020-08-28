@@ -81,10 +81,10 @@ class DataGenerator(Sequence):
 
             if self.augmentation and random.randint(0,1):
                 img_path = os.path.join(self.input_dir[0], "TransformImage", random.choice(self.augmentation)+"_"+image_name)
-                # print("[DEBUG] Used augment image")
+                # print("[INFO] Used augment image")
                 # print(random.choice(self.augmentation))
             else:
-                # print("[DEBUG] Used origin image")
+                # print("[INFO] Used origin image")
                 pass
             
             if self.crop:

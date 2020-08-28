@@ -88,7 +88,7 @@ if __name__ == '__main__':
             BINARY = bool(args.binary) # Hardcode
 
         config = TrainConfig()
-        # set_GPU(config.GPU_COUNT)
+        set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.prepare_data()
         # _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
@@ -331,6 +331,7 @@ if __name__ == '__main__':
 
 
         config = ClassifyConfig()
+        set_GPU(config.GPU_COUNT)
         model = EfficientNetWrapper(config)
         model.load_weight()
 

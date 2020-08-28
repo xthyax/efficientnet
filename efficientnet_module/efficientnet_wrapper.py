@@ -178,6 +178,7 @@ class EfficientNetWrapper:
             optimizer_dict = {
                 'sgd': optimizers.SGD(lr=self.config.LEARNING_RATE, momentum=self.config.LEARNING_MOMENTUM),
                 'adam': optimizers.Adam(lr=self.config.LEARNING_RATE),
+                'rmsprop': optimizers.RMSprop(learning_rate=self.config.LEARNING_RATE,decay=self.config.WEIGHT_DECAY),
                 'nadam': optimizers.Nadam(),
                 'radam': RAdam(),
                 'ranger': Lookahead(RAdam()),

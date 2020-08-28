@@ -1,6 +1,9 @@
 import keras
 import time
 import tensorflow as tf
+import sys
+import numpy as np
+from datetime import datetime
 
 class SaveMultiGPUModelCheckpoint(keras.callbacks.Callback):
     def __init__(self, template_model, checkpoint_dir):
@@ -24,42 +27,42 @@ class CustomCallback(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         # False Negative rate := FN / (TP + FN)
         # False Positive rate := FP / (TN + FP)
-        param = {
-            "FN": 0,
-            "TP": 0,
-            "FP": 0,
-            "TN": 0
-        }
         print("====================================")
         print("Calculating FN/FP rate.....")
         print("====================================")
+
+        y_gth_list = []
+        y_pred_list = []
+
         for _, sample in enumerate(self.test_data):
             x_data, y_data = sample
             
             x_result = self.model.predict(x_data)
 
+            gth_classes = np.argmax(y_data, axis=-1)
             predict_classes = x_result.argmax(axis=-1)
 
-            for i in range(len(x_data)):
-                # Check groundtruth
-                y_current = y_data[i].tolist()
+            y_gth_list.extend(gth_classes)
+            y_pred_list.extend(predict_classes)
 
-                if y_current.index(1) in self.fail_classes_index:
-                    if predict_classes[i] == y_current.index(1)\
-                        or predict_classes[i] in self.fail_classes_index:
-                        param['TP'] += 1
-                    else:
-                        param['FN'] += 1
-                else:
-                    if predict_classes[i] == y_current.index(1)\
-                        or predict_classes[i] in self.pass_classes_index:
-                        param['TN'] += 1
-                    else:
-                        param['FP'] += 1
+        fail_gth_list  = [np.array(y_gth_list) == class_ for class_ in self.fail_classes_index]
+        fail_gth_list = np.sum(fail_gth_list, axis=0)
+        total_fail = np.sum(fail_gth_list)
+        false_fail_pred_list = [np.array(y_pred_list) == class_ for class_ in self.fail_classes_index]
+        false_fail_pred_list = np.invert(np.sum(false_fail_pred_list, axis=0).astype('bool'))
+        false_fail_pred_list = false_fail_pred_list * fail_gth_list
+        total_underkill = np.sum(false_fail_pred_list)
+        UK_rate = (total_underkill / total_fail) * 100
 
-        UK_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
-        OK_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
-
+        pass_gth_list = [np.array(y_gth_list) == class_ for class_ in self.pass_classes_index]
+        pass_gth_list = np.sum(pass_gth_list, axis=0)
+        total_pass = np.sum(pass_gth_list)
+        false_pass_pred_list = [np.array(y_pred_list) == class_ for class_ in self.pass_classes_index]
+        false_pass_pred_list = np.invert(np.sum(false_pass_pred_list, axis=0).astype('bool'))
+        false_pass_pred_list = false_pass_pred_list  * pass_gth_list
+        total_overkill = np.sum(false_pass_pred_list)
+        OK_rate = (total_overkill / total_pass ) * 100
+        
         print(f"Underkill rate: {UK_rate} %")
         print(f"Overkill rate: {OK_rate} %")
 

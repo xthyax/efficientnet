@@ -65,7 +65,7 @@ class EfficientNetWrapper:
         self.ensemble_model = None
 
     def _build_model(self):
-        initializer = keras.initializers.glorot_uniform(seed=1)
+        # initializer = keras.initializers.glorot_uniform(seed=1)
         try:
             model_class = {
                 'B0': EfficientNetB0,
@@ -82,7 +82,9 @@ class EfficientNetWrapper:
             raise ValueError('Invalid Classification Settings')
 
         # Redundant RGB channels for grayscale input
-        base_model = model_class(input_shape=(self.input_size, self.input_size, 3),\
+        base_model = model_class(\
+            input_shape=(self.input_size, self.input_size, 3),\
+            # input_shape=( 380, 380, 3),\
             weights= self.config.WEIGHT_PATH if self.config.WEIGHT_PATH is not None else 'imagenet',\
             include_top=False)
 
@@ -95,7 +97,7 @@ class EfficientNetWrapper:
 
         x = keras.layers.GlobalAveragePooling2D()(base_model.output)
         output = keras.layers.Dense(self.num_of_classes, activation='softmax'\
-            ,kernel_initializer=initializer\
+            # ,kernel_initializer=initializer\
             )(x)
         
         return keras.models.Model(inputs=[base_model.input], outputs=[output])
@@ -419,7 +421,9 @@ class EfficientNetWrapper:
         Header.append("Underkill")
         Header.append("Overkill")
         # Init ensemble model
-        self.get_ensemble_model()
+        # self.get_ensemble_model()
+        fail_class_index = [self.classes.index(class_) for class_ in self.failClasses]
+        pass_class_index = [self.classes.index(class_) for class_ in self.passClasses]
         for sub_path in path:
             print(f"[DEBUG] Evaluating: {sub_path}")
             image_list = []
@@ -472,6 +476,27 @@ class EfficientNetWrapper:
                     else:
 
                         gt_id = self.classes.index(gt_name)
+                        image_name = image_path.split("\\")[-1]
+                        if gt_id in fail_class_index and pred_id in pass_class_index:   # Underkill
+                            underkill_path = os.path.join("_Result",image_path.split("\\")[-2],"UK")
+                            os.makedirs(underkill_path, exist_ok=True)
+                            image_output_path = os.path.join(underkill_path,image_name)
+                            cv2.imwrite(image_output_path, img)
+                            shutil.copy(image_path + ".json", os.path.join(underkill_path,image_name+".json"))
+                            underkill_overkill_flag = -1
+                        elif gt_id in pass_class_index and pred_id in fail_class_index:  # Overkill
+                            overkill_path = os.path.join("_Result",image_path.split("\\")[-2],"OK")
+                            os.makedirs(overkill_path, exist_ok=True)
+                            image_output_path = os.path.join(overkill_path,image_name)
+                            cv2.imwrite(image_output_path, img)
+                            shutil.copy(image_path + ".json", os.path.join(overkill_path,image_name+".json"))
+                            underkill_overkill_flag = 1
+                        else:                                               # Correct result
+                            result_path = os.path.join("_Result", image_path.split("\\")[-2])
+                            os.makedirs(result_path, exist_ok=True)
+                            image_output_path = os.path.join(result_path,image_name)
+                            cv2.imwrite(image_output_path, img)
+                            shutil.copy(image_path + ".json", os.path.join(result_path,image_name + ".json"))
                     
                     confusion_matrix[gt_id][pred_id] += 1
                     

@@ -12,7 +12,7 @@ class SaveMultiGPUModelCheckpoint(keras.callbacks.Callback):
         super().__init__()
 
     def on_epoch_end(self, epoch, logs=None):
-        self.template_model.save('%s/%s_%04d.h5' % (self.checkpoint_dir, time.strftime('%Y%m%d', time.localtime()), epoch))
+        self.template_model.save('%s/%s_%04d.h5' % (self.checkpoint_dir, time.strftime('%Y%m%d', time.localtime()), epoch), include_optimizer=False)
 
 
 class CustomCallback(keras.callbacks.Callback):

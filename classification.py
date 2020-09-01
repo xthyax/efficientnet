@@ -17,6 +17,7 @@ from efficientnet_module import config_loader
 from efficientnet_module.efficientnet_wrapper import EfficientNetWrapper
 from efficientnet_module.utils import load_and_crop, set_GPU
 from fwd9m.tensorflow import enable_determinism
+from datetime import datetime
 ###################
 # Global Constant #
 ###################
@@ -93,7 +94,7 @@ if __name__ == '__main__':
         model.prepare_data()
         # _init_t =  input("[DEBUG] Init train ?(Y/N)\nYour answer: ")
         # if _init_t.lower() == "y":
-
+        start_time = datetime.now()
         if config.WEIGHT_PATH:
             model.resume_training()
         else:
@@ -101,7 +102,9 @@ if __name__ == '__main__':
 
         # else:
         #     pass
+        end_time = datetime.now()
         print("\nTrain Done")
+        print("Training time: {}".format(end_time-start_time))
     elif args.command == "ensemble":
         param = config_loader.LoadConfig(args.config)
         

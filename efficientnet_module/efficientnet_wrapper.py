@@ -308,6 +308,7 @@ class EfficientNetWrapper:
         model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
 
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
+        
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
                             max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
                             initial_epoch=epoch)

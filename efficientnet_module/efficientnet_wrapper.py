@@ -275,14 +275,37 @@ class EfficientNetWrapper:
     def resume_training(self):
         epoch = 0
         strategy =  tf.distribute.MirroredStrategy()
-        print("Number of devices: {}".format(strategy.num_replicas_in_sync))
-        train_checkpoint_dir = self.config.LOGS_PATH
-        if "startingmodel.h5" in self.config.WEIGHT_PATH:
-            self.keras_model = self._build_model()
-            self.load_classes()
-        else:
-            self.load_weight()
+        print("[INFO] Number of devices: {}".format(strategy.num_replicas_in_sync))
+        optimizer = self.optimizer_chosen()
 
+        train_checkpoint_dir = self.config.LOGS_PATH
+
+        if "startingmodel.h5" in self.config.WEIGHT_PATH:
+            if self.config.GPU_COUNT > 1:
+                with strategy.scope():
+                    self.keras_model = self._build_model()
+                    model = self.keras_model
+                    model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+                # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
+            elif self.config.GPU_COUNT == 1:
+                self.keras_model = self._build_model()
+                model = self.keras_model
+                model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+            else:
+                raise ValueError("Invalid 'gpu_count' value")
+        else:
+            if self.config.GPU_COUNT > 1:
+                with strategy.scope():
+                    self.load_weight()
+                    model = self.keras_model
+                    model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+
+            elif self.config.GPU_COUNT == 1:
+                self.load_weight()
+                model = self.keras_model
+                model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+            else:
+                raise ValueError("Invalid 'gpu_count' value")
         # train
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=train_checkpoint_dir)
         
@@ -298,19 +321,6 @@ class EfficientNetWrapper:
         #     ['Pass'] if self.binary_option else self.passClasses)
 
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
-
-        optimizer = self.optimizer_chosen()
-
-        if self.config.GPU_COUNT > 1:
-            with strategy.scope():
-                model = self.keras_model
-                model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
-            # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
-        elif self.config.GPU_COUNT == 1:
-            model = self.keras_model
-            model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
-        else:
-            raise ValueError("Invalid 'gpu_count' value")
 
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
                             max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],

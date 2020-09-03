@@ -24,6 +24,7 @@ from .data_generator import DataGenerator
 from .utils import multi_threshold, recursive_glob, compute_class_weight, recursive_folder, config_dump, load_and_crop, \
     get_dataframe, get_z_score_info, get_z_score, SplitDataFrameToTrainAndTest, get_dataframe_one
 from .focal_loss import focal_loss
+from .parallel_model import ParallelModel
 # from efficientnet_module.modules.config import Optimizer_, FREEZE
 # from efficientnet_module.modules import config
 
@@ -274,7 +275,7 @@ class EfficientNetWrapper:
 
     def resume_training(self):
         epoch = 0
-        strategy =  tf.distribute.MirroredStrategy()
+        strategy =  tf.distribute.Strategy()
         print("[INFO] Number of devices: {}".format(strategy.num_replicas_in_sync))
         optimizer = self.optimizer_chosen()
 
@@ -284,7 +285,7 @@ class EfficientNetWrapper:
             if self.config.GPU_COUNT > 1:
                 with strategy.scope():
                     self.keras_model = self._build_model()
-                    model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
+                    model = self.keras_model
                     model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
                 # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
             elif self.config.GPU_COUNT == 1:

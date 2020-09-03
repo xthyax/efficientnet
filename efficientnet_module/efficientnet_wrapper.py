@@ -284,6 +284,8 @@ class EfficientNetWrapper:
 
     def resume_training(self):
         epoch = 0
+        strategy =  tf.distribute.Strategy()
+        print("[INFO] Number of devices: {}".format(strategy.num_replicas_in_sync))
         optimizer = self.optimizer_chosen()
         strategy = tf.distribute.MirroredStrategy()
         train_checkpoint_dir = self.config.LOGS_PATH

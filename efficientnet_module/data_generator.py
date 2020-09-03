@@ -8,6 +8,8 @@ import cv2
 from .utils import to_onehot, load_and_crop, metadata_count
 import json
 import glob
+dash_path = "\\" if os.name =="nt" else "/"
+
 
 class DataGenerator(Sequence):
     def __init__(self, input_dir, batch_size, classes, failClasses, passClasses, input_size,\
@@ -77,7 +79,7 @@ class DataGenerator(Sequence):
         batch_x = [sample[0] for sample in batch]
         imgs = []
         for img_path in batch_x:
-            image_name = img_path.split("\\")[-1]
+            image_name = img_path.split(dash_path)[-1]
 
             if self.augmentation and random.randint(0,1):
                 img_path = os.path.join(self.input_dir[0], "TransformImage", random.choice(self.augmentation)+"_"+image_name)

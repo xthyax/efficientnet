@@ -119,7 +119,7 @@ class EfficientNetWrapper:
                 list_Directory.remove(diRectory)
 
         for diRectory in list_Directory:
-            generator = DataGenerator(diRectory, self.config.BATCH_SIZE,\
+            generator = DataGenerator(diRectory, self.config.BATCH_SIZE * self.config.GPU_COUNT,\
                 self.classes, self.failClasses, self.passClasses,\
                 self.input_size, self.binary_option, augmentation=self.config.AU_LIST if "train" in diRectory.lower() else None )
         
@@ -274,6 +274,8 @@ class EfficientNetWrapper:
 
     def resume_training(self):
         epoch = 0
+        strategy =  tf.distribute.MirroredStrategy()
+        print("Number of devices: {}".format(strategy.num_replicas_in_sync))
         train_checkpoint_dir = self.config.LOGS_PATH
         if "startingmodel.h5" in self.config.WEIGHT_PATH:
             self.keras_model = self._build_model()
@@ -295,24 +297,24 @@ class EfficientNetWrapper:
         #     ['Reject'] if self.binary_option else self.failClasses, \
         #     ['Pass'] if self.binary_option else self.passClasses)
 
+        checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
 
-        if self.config.GPU_COUNT > 1:
-            model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
-        elif self.config.GPU_COUNT == 1:
-            model = self.keras_model
-        else:
-            raise ValueError("Invalid 'gpu_count' value")
-        
         optimizer = self.optimizer_chosen()
 
-        model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+        if self.config.GPU_COUNT > 1:
+            with strategy.scope():
+                model = self.keras_model
+                model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+            # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
+        elif self.config.GPU_COUNT == 1:
+            model = self.keras_model
+            model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+        else:
+            raise ValueError("Invalid 'gpu_count' value")
 
-        checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
-        
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
                             max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
                             initial_epoch=epoch)
-
 
     def labelling_raw_data(self):
         path = [

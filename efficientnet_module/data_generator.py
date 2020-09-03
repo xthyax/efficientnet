@@ -1,8 +1,10 @@
 from random import shuffle
 import random
 import os
-from efficientnet.keras import preprocess_input
-from keras.utils import Sequence
+from efficientnet.tfkeras import preprocess_input
+# from efficientnet.keras import preprocess_input
+# from keras.utils import Sequence
+from tensorflow.python.keras.utils import Sequence
 import numpy as np
 import cv2
 from .utils import to_onehot, load_and_crop, metadata_count

@@ -1,20 +1,29 @@
 import os
+os.environ['TF_KERAS']='1'
 import json
 import time
 from pathlib import Path
 
 # from keras_applications.imagenet_utils import _obtain_input_shape
 import cv2
-import keras
 import numpy as np
 import pandas as pd
-from efficientnet.keras import *
+# import keras
+# from efficientnet.keras import *
+# from tensorflow.keras.models import load_model
+# from keras.engine.saving import model_from_json
+# from keras.utils import multi_gpu_model
+# from keras import backend as K
+# from keras import optimizers
+
+from efficientnet.tfkeras import *
 import tensorflow as tf
-from keras.models import load_model
-from keras.engine.saving import model_from_json
-from keras.utils import multi_gpu_model
-from keras import backend as K
-from keras import optimizers
+from tensorflow.python import keras
+from tensorflow.python.keras.models import load_model
+from tensorflow.python.keras.utils import multi_gpu_model
+from tensorflow.python.keras import backend as K
+from tensorflow.python.keras import optimizers
+
 from keras_lookahead import Lookahead
 from keras_radam import RAdam
 
@@ -24,7 +33,7 @@ from .data_generator import DataGenerator
 from .utils import multi_threshold, recursive_glob, compute_class_weight, recursive_folder, config_dump, load_and_crop, \
     get_dataframe, get_z_score_info, get_z_score, SplitDataFrameToTrainAndTest, get_dataframe_one
 from .focal_loss import focal_loss
-from .parallel_model import ParallelModel
+# from .parallel_model import ParallelModel
 # from efficientnet_module.modules.config import Optimizer_, FREEZE
 # from efficientnet_module.modules import config
 
@@ -95,7 +104,7 @@ class EfficientNetWrapper:
         else:
             for layer in base_model.layers:
                 layer.trainable = not freeze
-
+        
         x = keras.layers.GlobalAveragePooling2D()(base_model.output)
         output = keras.layers.Dense(self.num_of_classes, activation='softmax'\
             # ,kernel_initializer=initializer\
@@ -179,8 +188,8 @@ class EfficientNetWrapper:
             optimizer_dict = {
                 'sgd': optimizers.SGD(lr=self.config.LEARNING_RATE, momentum=self.config.LEARNING_MOMENTUM),
                 'adam': optimizers.Adam(lr=self.config.LEARNING_RATE),
-                'rmsprop': optimizers.RMSprop(learning_rate=self.config.LEARNING_RATE,decay=self.config.WEIGHT_DECAY),
-                'nadam': optimizers.Nadam(),
+                'rmsprop': optimizers.RMSprop(lr=self.config.LEARNING_RATE,decay=self.config.WEIGHT_DECAY),
+                'nadam': optimizers.Nadam(lr=self.config.LEARNING_RATE),
                 'radam': RAdam(),
                 'ranger': Lookahead(RAdam()),
             }[self.config.OPTIMIZER.lower()]
@@ -276,15 +285,15 @@ class EfficientNetWrapper:
     def resume_training(self):
         epoch = 0
         optimizer = self.optimizer_chosen()
-
+        strategy = tf.distribute.MirroredStrategy()
         train_checkpoint_dir = self.config.LOGS_PATH
 
         if "startingmodel.h5" in self.config.WEIGHT_PATH:
             if self.config.GPU_COUNT > 1:
-                # with strategy.scope():
-                self.keras_model = self._build_model()
-                model = ParallelModel(self.keras_model, gpu_count=self.config.GPU_COUNT)
-                model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+                with strategy.scope():
+                    self.keras_model = self._build_model()
+                    model = self.keras_model
+                    model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
                 # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
             elif self.config.GPU_COUNT == 1:
                 self.keras_model = self._build_model()
@@ -294,10 +303,10 @@ class EfficientNetWrapper:
                 raise ValueError("Invalid 'gpu_count' value")
         else:
             if self.config.GPU_COUNT > 1:
-                # with strategy.scope():
-                self.load_weight()
-                model = ParallelModel(self.keras_model, gpu_count=self.config.GPU_COUNT)
-                model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
+                with strategy.scope():
+                    self.load_weight()
+                    model = self.keras_model
+                    model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
 
             elif self.config.GPU_COUNT == 1:
                 self.load_weight()

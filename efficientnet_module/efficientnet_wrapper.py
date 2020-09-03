@@ -284,7 +284,7 @@ class EfficientNetWrapper:
             if self.config.GPU_COUNT > 1:
                 with strategy.scope():
                     self.keras_model = self._build_model()
-                    model = self.keras_model
+                    model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
                     model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
                 # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
             elif self.config.GPU_COUNT == 1:

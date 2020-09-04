@@ -40,6 +40,7 @@ from sklearn.neighbors import *
 from sklearn.tree import *
 from tensorboardX import SummaryWriter
 from keras.callbacks import ModelCheckpoint
+from datetime import datetime
 
 class EfficientNetWrapper:
     def __init__(self, config):
@@ -322,10 +323,13 @@ class EfficientNetWrapper:
 
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
 
+        start_time = datetime.now()
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
                             max_queue_size=10, workers=12, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
                             initial_epoch=epoch, use_multiprocessing=True)
-
+        end_time = datetime.now()
+        print("Training time: {}".format(end_time-start_time))
+        
     def labelling_raw_data(self):
         path = [
             os.path.join(self.config.DATASET_PATH)

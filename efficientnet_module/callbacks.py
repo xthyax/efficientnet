@@ -1,11 +1,11 @@
-# import keras
+import keras
 import time
 import tensorflow as tf
 import sys
 import numpy as np
 from datetime import datetime
 
-class SaveMultiGPUModelCheckpoint(tf.keras.callbacks.Callback):
+class SaveMultiGPUModelCheckpoint(keras.callbacks.Callback):
     def __init__(self, template_model, checkpoint_dir):
         self.template_model = template_model
         self.checkpoint_dir = checkpoint_dir
@@ -15,7 +15,7 @@ class SaveMultiGPUModelCheckpoint(tf.keras.callbacks.Callback):
         self.template_model.save('%s/%s_%04d.h5' % (self.checkpoint_dir, time.strftime('%Y%m%d', time.localtime()), epoch), include_optimizer=False)
 
 
-class CustomCallback(tf.keras.callbacks.Callback):
+class CustomCallback(keras.callbacks.Callback):
     def __init__(self, writer,test_data, list_classes, fail_classes, pass_classes):
         # self.tb_callback = tb_callback
         self.writer = writer

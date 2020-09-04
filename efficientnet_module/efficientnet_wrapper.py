@@ -17,7 +17,7 @@ from keras import backend as K
 from keras import optimizers
 from keras_lookahead import Lookahead
 from keras_radam import RAdam
-
+from .parallel_model import ParallelModel
 from .callbacks import SaveMultiGPUModelCheckpoint, CustomCallback
 from .data_generator import DataGenerator
 # from .utils import cou
@@ -323,8 +323,8 @@ class EfficientNetWrapper:
         checkpoint_callback = SaveMultiGPUModelCheckpoint(self.keras_model, train_checkpoint_dir)
 
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
-                            max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
-                            initial_epoch=epoch)
+                            max_queue_size=10, workers=12, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
+                            initial_epoch=epoch, use_multiprocessing=True)
 
     def labelling_raw_data(self):
         path = [

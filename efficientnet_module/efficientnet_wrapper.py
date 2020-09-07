@@ -17,6 +17,7 @@ from keras import backend as K
 from keras import optimizers
 from keras_lookahead import Lookahead
 from keras_radam import RAdam
+from keras.backend import clear_session
 from .parallel_model import ParallelModel
 from .callbacks import SaveMultiGPUModelCheckpoint, CustomCallback
 from .data_generator import DataGenerator
@@ -60,6 +61,7 @@ class EfficientNetWrapper:
         self.evaluate_generator = None
         self.id_class_mapping = None
         self.class_weights = None
+        clear_session()
         self.graph = tf.get_default_graph()
         self.session = K.get_session()
         self.config = config
@@ -325,8 +327,8 @@ class EfficientNetWrapper:
 
         start_time = datetime.now()
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
-                            max_queue_size=10, workers=12, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
-                            initial_epoch=epoch, use_multiprocessing=True)
+                            max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
+                            initial_epoch=epoch)
         end_time = datetime.now()
         print("Training time: {}".format(end_time-start_time))
         

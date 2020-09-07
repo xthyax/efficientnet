@@ -285,7 +285,7 @@ class EfficientNetWrapper:
             if self.config.GPU_COUNT > 1:
                 with strategy.scope():
                     self.keras_model = self._build_model()
-                    model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
+                    model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT, cpu_merge=False)
                     model.compile(optimizer=optimizer, loss=self.lossFunc_chosen(), metrics=['accuracy'])
                 # model = multi_gpu_model(self.keras_model, gpus=self.config.GPU_COUNT)
             elif self.config.GPU_COUNT == 1:
@@ -325,8 +325,8 @@ class EfficientNetWrapper:
 
         start_time = datetime.now()
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
-                            max_queue_size=10, workers=12, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
-                            initial_epoch=epoch, use_multiprocessing=True)
+                            max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
+                            initial_epoch=epoch)
         end_time = datetime.now()
         print("Training time: {}".format(end_time-start_time))
         

@@ -226,19 +226,41 @@ class EfficientNetWrapper:
         self.keras_model = load_model(self.config.WEIGHT_PATH, compile=False)
         self.load_classes()
 
-    def predict_one(self, img, return_all):
+    def predict_one(self, img, return_all, TTA=False):
         # resized_img = cv2.resize(img, (self.input_size, self.input_size))
         # resized_img = image_read(img, self.input_size)
-        input_data = np.array([img])
-        X = preprocess_input(input_data)
-        # Using ensemble model ==============================
-        # X_data = self.get_feature_one(img)
-        # ensemble_prop = self.ensemble_prediction(X_data)
-        # ===================================================
-        # print(f"[DEBUG] ensemble propability : {ensemble_prop[0]}")
-        with self.graph.as_default():
-            with self.session.as_default():
-                Y = self.keras_model.predict(X)
+        if TTA:
+            Y_list = []
+            input_data = np.array([img])
+            X = preprocess_input(input_data)
+
+            with self.graph.as_default():
+                with self.session.as_default():
+                    Y = self.keras_model.predict(X)
+            Y_list.append(Y)
+
+            for i in range(3):
+                img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+                input_data = np.array([img])
+                X = preprocess_input(input_data)
+                with self.graph.as_default():
+                    with self.session.as_default():
+                        Y = self.keras_model.predict(X)
+                Y_list.append(Y)
+            
+            Y  = np.mean(Y_list, axis=0)
+            
+        else:
+            input_data = np.array([img])
+            X = preprocess_input(input_data)
+            # Using ensemble model ==============================
+            # X_data = self.get_feature_one(img)
+            # ensemble_prop = self.ensemble_prediction(X_data)
+            # ===================================================
+            # print(f"[DEBUG] ensemble propability : {ensemble_prop[0]}")
+            with self.graph.as_default():
+                with self.session.as_default():
+                    Y = self.keras_model.predict(X)
         # Combine with ensemble model========================
         # Y = Y * 0.7 + ensemble_prop * 0.3
         # ===================================================
@@ -327,7 +349,7 @@ class EfficientNetWrapper:
 
         start_time = datetime.now()
         model.fit_generator(self.train_generator, epochs=self.config.NO_EPOCH, validation_data=self.val_generator,
-                            max_queue_size=10, workers=1, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
+                            max_queue_size=100, workers=0, callbacks=[checkpoint_callback, tensorboard_callback, custom_callback],
                             initial_epoch=epoch)
         end_time = datetime.now()
         print("Training time: {}".format(end_time-start_time))
@@ -466,8 +488,8 @@ class EfficientNetWrapper:
                     worksheet.set_row(start_row, 60)
                     underkill_overkill_flag = 0
                     img, gt_name = load_and_crop(image_path, self.input_size)
-                    pred_id, pred_score, pred_name = self.predict_one(img, 0)
-                    all_scores = self.predict_one(img, 1)
+                    pred_id, pred_score, pred_name = self.predict_one(img, 0, True)
+                    all_scores = self.predict_one(img, 1, True)
                     if self.binary_option:
 
                         gt_name = 'Reject' if gt_name in self.failClasses else 'Pass'

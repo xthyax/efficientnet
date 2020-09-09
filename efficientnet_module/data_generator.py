@@ -39,7 +39,7 @@ class DataGenerator(Sequence):
         #     # self.augmentation = lambda x: function_augmentation(images=x)
         #     self.augmentation = lambda x: x
     def load_classes(self, classes):
-        if self.binary_option:
+        if self.binary_option and len(classes) < 3:
             return ['Reject', 'Pass']
         else:
             return classes        

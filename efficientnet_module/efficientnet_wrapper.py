@@ -159,7 +159,7 @@ class EfficientNetWrapper:
         #     raise ValueError("Invalid loss function")
 
     def load_classes(self):
-        if self.binary_option:
+        if self.binary_option and len(self.classes) < 3:
             init_class = ['Reject','Pass']
             self.classes = init_class
             self.num_of_classes = len(init_class)
@@ -230,18 +230,27 @@ class EfficientNetWrapper:
         # resized_img = cv2.resize(img, (self.input_size, self.input_size))
         # resized_img = image_read(img, self.input_size)
         if TTA:
-            Y_list = []
-            input_data = np.array([img])
-            X = preprocess_input(input_data)
-
-            with self.graph.as_default():
-                with self.session.as_default():
-                    Y = self.keras_model.predict(X)
-            Y_list.append(Y)
-
-            for i in range(3):
-                img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-                input_data = np.array([img])
+            TTA_ls = [
+                img,
+                cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE),
+                cv2.rotate(img, cv2.ROTATE_180),
+                cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE),
+                cv2.flip(img, 0),
+                cv2.flip(img, 1),
+                cv2.flip(img, -1),
+                cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_90_CLOCKWISE),
+                cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_180),
+                cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_90_COUNTERCLOCKWISE),
+                cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_90_CLOCKWISE),
+                cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_180),
+                cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_90_COUNTERCLOCKWISE),
+                cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_90_CLOCKWISE),
+                cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_180),
+                cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_90_COUNTERCLOCKWISE),
+            ]
+            for i in range(len(TTA_ls)):
+                img_TTA = TTA_ls[i]
+                input_data = np.array([img_TTA])
                 X = preprocess_input(input_data)
                 with self.graph.as_default():
                     with self.session.as_default():
@@ -249,7 +258,7 @@ class EfficientNetWrapper:
                 Y_list.append(Y)
             
             Y  = np.mean(Y_list, axis=0)
-            
+
         else:
             input_data = np.array([img])
             X = preprocess_input(input_data)

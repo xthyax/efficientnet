@@ -446,18 +446,11 @@ class EfficientNetWrapper:
             # os.path.join(self.config.DATASET_PATH,"agree_part3"),                       #Hardcode
             # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part2"),        #Hardcode
             # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part3"),        #Hardcode
-<<<<<<< HEAD
             os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
             os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
             os.path.join(self.config.DATASET_PATH,"Test"),                   #Hardcode
             os.path.join(self.config.DATASET_PATH,"Part4"),
             os.path.join(self.config.DATASET_PATH,"Gerd_Underkill_bmp") 
-=======
-            # os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
-            # os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
-            # os.path.join(self.config.DATASET_PATH,"Test")                   #Hardcode
-            os.path.join(self.config.DATASET_PATH)
->>>>>>> 2c4bfce2bb60d67ba966fc5e9a17dad307c76047
         ]
         # result_path = [
         #     os.path.join("_Result","UK"),

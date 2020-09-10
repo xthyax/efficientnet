@@ -292,7 +292,7 @@ class EfficientNetWrapper:
         # print(f"[DEBUG] Y_score: {Y_score}")
         # print(f"[DEBUG] all scores: {Y[0]}")
         if return_all :
-            return Y[0]
+            return Y[0], Y_class_name
         else:
             return Y_class_id[0], Y_score[0], Y_class_name
 
@@ -446,11 +446,18 @@ class EfficientNetWrapper:
             # os.path.join(self.config.DATASET_PATH,"agree_part3"),                       #Hardcode
             # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part2"),        #Hardcode
             # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part3"),        #Hardcode
+<<<<<<< HEAD
             os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
             os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
             os.path.join(self.config.DATASET_PATH,"Test"),                   #Hardcode
             os.path.join(self.config.DATASET_PATH,"Part4"),
             os.path.join(self.config.DATASET_PATH,"Gerd_Underkill_bmp") 
+=======
+            # os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
+            # os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
+            # os.path.join(self.config.DATASET_PATH,"Test")                   #Hardcode
+            os.path.join(self.config.DATASET_PATH)
+>>>>>>> 2c4bfce2bb60d67ba966fc5e9a17dad307c76047
         ]
         # result_path = [
         #     os.path.join("_Result","UK"),
@@ -500,8 +507,8 @@ class EfficientNetWrapper:
                     worksheet.set_row(start_row, 60)
                     underkill_overkill_flag = 0
                     img, gt_name = load_and_crop(image_path, self.input_size)
-                    pred_id, pred_score, pred_name = self.predict_one(img, 0, True)
-                    all_scores = self.predict_one(img, 1, True)
+                    pred_id, pred_score, pred_name = self.predict_one(img, 0, False)
+                    all_scores = self.predict_one(img, 1, False)
                     if self.binary_option:
 
                         gt_name = 'Reject' if gt_name in self.failClasses else 'Pass'

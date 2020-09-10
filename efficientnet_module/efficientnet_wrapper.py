@@ -230,6 +230,7 @@ class EfficientNetWrapper:
         # resized_img = cv2.resize(img, (self.input_size, self.input_size))
         # resized_img = image_read(img, self.input_size)
         if TTA:
+            Y_list = []
             TTA_ls = [
                 img,
                 cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE),
@@ -447,7 +448,9 @@ class EfficientNetWrapper:
             # os.path.join(self.config.DATASET_PATH,"disagree_defect_type_part3"),        #Hardcode
             os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
             os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
-            os.path.join(self.config.DATASET_PATH,"Test")                   #Hardcode
+            os.path.join(self.config.DATASET_PATH,"Test"),                   #Hardcode
+            os.path.join(self.config.DATASET_PATH,"Part4"),
+            os.path.join(self.config.DATASET_PATH,"Gerd_Underkill_bmp") 
         ]
         # result_path = [
         #     os.path.join("_Result","UK"),

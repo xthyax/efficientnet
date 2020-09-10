@@ -110,7 +110,7 @@ if __name__ == '__main__':
         
         class InferConfig:
             NO_EPOCH = param.NO_EPOCH
-            GPU_COUNT = param.NUM_GPU
+            GPU_COUNT = 1
             LEARNING_RATE = param.LEANING_RATE
             LEARNING_MOMENTUM = param.MOMENTUM
             WEIGHT_DECAY = param.DECAY

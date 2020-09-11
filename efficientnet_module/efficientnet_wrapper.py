@@ -226,7 +226,7 @@ class EfficientNetWrapper:
         self.keras_model = load_model(self.config.WEIGHT_PATH, compile=False)
         self.load_classes()
 
-    def predict_one(self, img, return_all, TTA=False):
+    def predict_one(self, img, TTA=True):
         # resized_img = cv2.resize(img, (self.input_size, self.input_size))
         # resized_img = image_read(img, self.input_size)
         if TTA:
@@ -276,25 +276,21 @@ class EfficientNetWrapper:
         # ===================================================
         if self.config.CLASS_THRESHOLD is None or len(self.config.CLASS_THRESHOLD) == 0:
             Y_class_id = np.argmax(Y, axis=-1)
-            Y_score = np.max(Y, axis=-1)
         else:
             ret = multi_threshold(Y, self.config.CLASS_THRESHOLD)
             if ret is None:
                 classID = -1
                 className = "Unknown"
-                scores = Y[0]
-                return classID, scores, className
+                all_scores = Y[0]
+                return classID, all_scores, className
             else:
-                Y_class_id, Y_score = ret
+                Y_class_id, _ = ret
 
         Y_class_name = self.id_class_mapping[Y_class_id[0]]
         # print(f"[DEBUG] Y_class_id: {Y_class_id}")
         # print(f"[DEBUG] Y_score: {Y_score}")
         # print(f"[DEBUG] all scores: {Y[0]}")
-        if return_all :
-            return Y[0], Y_class_name
-        else:
-            return Y_class_id[0], Y_score[0], Y_class_name
+        return Y_class_id[0], Y[0], Y_class_name
 
     def evaluate(self, subset='test'):
         # TODO: make evaluate for all set instead of just test set
@@ -500,8 +496,7 @@ class EfficientNetWrapper:
                     worksheet.set_row(start_row, 60)
                     underkill_overkill_flag = 0
                     img, gt_name = load_and_crop(image_path, self.input_size)
-                    pred_id, pred_score, pred_name = self.predict_one(img, 0, False)
-                    all_scores = self.predict_one(img, 1, False)
+                    pred_id, all_scores, pred_name = self.predict_one(img)
                     if self.binary_option:
 
                         gt_name = 'Reject' if gt_name in self.failClasses else 'Pass'

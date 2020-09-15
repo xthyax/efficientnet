@@ -583,26 +583,28 @@ class EfficientNetWrapper:
         fail_ls_class =  ['Reject'] if self.binary_option else self.failClasses
         pass_ls_class = ['Pass'] if self.binary_option else self.passClasses
 
-        model_info = {
+        total_model_info = {}
+
+        min_OK_rate = 5
+
+        count_model = 0
+        for trained_model in model_path_ls:
+            self.config.WEIGHT_PATH = trained_model
+        
+            model_info = {
                 "path": [],
                 "model_name": [],
                 "Underkill_rate": [],
                 "Overkill_rate": []
             }
-        min_OK_rate = 100
-        for trained_model in model_path_ls:
-            self.config.WEIGHT_PATH = trained_model
-        
+
             self.load_weight()
+
             fail_class_index = [self.classes.index(item_class) for item_class in fail_ls_class]
             pass_class_index = [self.classes.index(item_class) for item_class in pass_ls_class]
             
-            param = {
-                "FN": 0,
-                "TP": 0,
-                "FP": 0,
-                "TN": 0
-            }
+            y_gth_list = []
+            y_pred_list = []
             
             print("====================================")
             print(f"Testing model : {self.config.WEIGHT_PATH}.....")
@@ -616,25 +618,29 @@ class EfficientNetWrapper:
 
                         predict_classes = x_result.argmax(axis=-1)
 
-                        for i in range(len(x_data)):
-                            # Check groundtruth
-                            y_current = y_data[i].tolist()
+                        gth_classes = np.argmax(y_data, axis=-1)
+                        predict_classes = x_result.argmax(axis=-1)
 
-                            if y_current.index(1) in fail_class_index:
-                                if predict_classes[i] == y_current.index(1)\
-                                    or predict_classes[i] in fail_class_index:
-                                    param['TP'] += 1
-                                else:
-                                    param['FN'] += 1
-                            else:
-                                if predict_classes[i] == y_current.index(1)\
-                                    or predict_classes[i] in pass_class_index:
-                                    param['TN'] += 1
-                                else:
-                                    param['FP'] += 1
+                        y_gth_list.extend(gth_classes)
+                        y_pred_list.extend(predict_classes)
 
-                    UK_rate = (param['FN'] / (param['TP'] + param['FN'])) * 100
-                    OK_rate = (param['FP'] / (param['TN'] + param['FP'])) * 100
+                    fail_gth_list  = [np.array(y_gth_list) == class_ for class_ in self.fail_classes_index]
+                    fail_gth_list = np.sum(fail_gth_list, axis=0)
+                    total_fail = np.sum(fail_gth_list)
+                    false_fail_pred_list = [np.array(y_pred_list) == class_ for class_ in self.fail_classes_index]
+                    false_fail_pred_list = np.invert(np.sum(false_fail_pred_list, axis=0).astype('bool'))
+                    false_fail_pred_list = false_fail_pred_list * fail_gth_list
+                    total_underkill = np.sum(false_fail_pred_list)
+                    UK_rate = (total_underkill / total_fail) * 100
+
+                    pass_gth_list = [np.array(y_gth_list) == class_ for class_ in self.pass_classes_index]
+                    pass_gth_list = np.sum(pass_gth_list, axis=0)
+                    total_pass = np.sum(pass_gth_list)
+                    false_pass_pred_list = [np.array(y_pred_list) == class_ for class_ in self.pass_classes_index]
+                    false_pass_pred_list = np.invert(np.sum(false_pass_pred_list, axis=0).astype('bool'))
+                    false_pass_pred_list = false_pass_pred_list  * pass_gth_list
+                    total_overkill = np.sum(false_pass_pred_list)
+                    OK_rate = (total_overkill / total_pass ) * 100
 
                     print(f"Underkill rate: {UK_rate} %")
                     print(f"Overkill rate: {OK_rate} %")
@@ -646,10 +652,12 @@ class EfficientNetWrapper:
                         model_info["model_name"] = [self.config.WEIGHT_PATH.split("\\")[-1]]
                         model_info['Underkill_rate'] = [UK_rate]
                         model_info['Overkill_rate'] = [OK_rate]
-                        min_OK_rate = OK_rate
+                        # min_OK_rate = OK_rate
+                        count_model += 1
+                        total_model_info.update(f"model_{count_model}": model_info)
 
         with open("model_info.json", "w") as model_json:
-            json.dump(model_info, model_json)
+            json.dump(total_model_info, model_json)
 
     def get_handcraft_feature(self):
         Data_Path = os.path.join(self.config.DATASET_PATH, "Train\\OriginImage")

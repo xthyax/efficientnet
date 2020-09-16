@@ -624,19 +624,19 @@ class EfficientNetWrapper:
                         y_gth_list.extend(gth_classes)
                         y_pred_list.extend(predict_classes)
 
-                    fail_gth_list  = [np.array(y_gth_list) == class_ for class_ in self.fail_classes_index]
+                    fail_gth_list  = [np.array(y_gth_list) == class_ for class_ in fail_class_index]
                     fail_gth_list = np.sum(fail_gth_list, axis=0)
                     total_fail = np.sum(fail_gth_list)
-                    false_fail_pred_list = [np.array(y_pred_list) == class_ for class_ in self.fail_classes_index]
+                    false_fail_pred_list = [np.array(y_pred_list) == class_ for class_ in fail_class_index]
                     false_fail_pred_list = np.invert(np.sum(false_fail_pred_list, axis=0).astype('bool'))
                     false_fail_pred_list = false_fail_pred_list * fail_gth_list
                     total_underkill = np.sum(false_fail_pred_list)
                     UK_rate = (total_underkill / total_fail) * 100
 
-                    pass_gth_list = [np.array(y_gth_list) == class_ for class_ in self.pass_classes_index]
+                    pass_gth_list = [np.array(y_gth_list) == class_ for class_ in pass_class_index]
                     pass_gth_list = np.sum(pass_gth_list, axis=0)
                     total_pass = np.sum(pass_gth_list)
-                    false_pass_pred_list = [np.array(y_pred_list) == class_ for class_ in self.pass_classes_index]
+                    false_pass_pred_list = [np.array(y_pred_list) == class_ for class_ in pass_class_index]
                     false_pass_pred_list = np.invert(np.sum(false_pass_pred_list, axis=0).astype('bool'))
                     false_pass_pred_list = false_pass_pred_list  * pass_gth_list
                     total_overkill = np.sum(false_pass_pred_list)
@@ -654,7 +654,9 @@ class EfficientNetWrapper:
                         model_info['Overkill_rate'] = [OK_rate]
                         # min_OK_rate = OK_rate
                         count_model += 1
-                        total_model_info.update(f"model_{count_model}": model_info)
+                        model_n = "model_" + str(count_model)
+                        total_model_info[model_n] = model_info
+                        # total_model_info.update( model_n : model_info)
 
         with open("model_info.json", "w") as model_json:
             json.dump(total_model_info, model_json)

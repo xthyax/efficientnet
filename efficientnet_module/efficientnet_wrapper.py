@@ -236,18 +236,18 @@ class EfficientNetWrapper:
                 cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE),
                 cv2.rotate(img, cv2.ROTATE_180),
                 cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE),
-                cv2.flip(img, 0),
-                cv2.flip(img, 1),
-                cv2.flip(img, -1),
-                cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_90_CLOCKWISE),
-                cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_180),
-                cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_90_COUNTERCLOCKWISE),
-                cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_90_CLOCKWISE),
-                cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_180),
-                cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_90_COUNTERCLOCKWISE),
-                cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_90_CLOCKWISE),
-                cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_180),
-                cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_90_COUNTERCLOCKWISE),
+                # cv2.flip(img, 0),
+                # cv2.flip(img, 1),
+                # cv2.flip(img, -1),
+                # cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_90_CLOCKWISE),
+                # cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_180),
+                # cv2.rotate(cv2.flip(img, 0), cv2.ROTATE_90_COUNTERCLOCKWISE),
+                # cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_90_CLOCKWISE),
+                # cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_180),
+                # cv2.rotate(cv2.flip(img, 1), cv2.ROTATE_90_COUNTERCLOCKWISE),
+                # cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_90_CLOCKWISE),
+                # cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_180),
+                # cv2.rotate(cv2.flip(img, -1), cv2.ROTATE_90_COUNTERCLOCKWISE),
             ]
             for i in range(len(TTA_ls)):
                 img_TTA = TTA_ls[i]
@@ -445,8 +445,8 @@ class EfficientNetWrapper:
             os.path.join(self.config.DATASET_PATH,"Train\\OriginImage"),    #Hardcode
             os.path.join(self.config.DATASET_PATH,"Validation"),            #Hardcode
             os.path.join(self.config.DATASET_PATH,"Test"),                   #Hardcode
-            os.path.join(self.config.DATASET_PATH,"Part4"),
-            os.path.join(self.config.DATASET_PATH,"Gerd_Underkill_bmp") 
+            # os.path.join(self.config.DATASET_PATH,"Part4"),
+            # os.path.join(self.config.DATASET_PATH,"Gerd_Underkill_bmp") 
         ]
         # result_path = [
         #     os.path.join("_Result","UK"),
@@ -459,6 +459,7 @@ class EfficientNetWrapper:
         cell_format = workbook.add_format()
         cell_format.set_align('center')
         cell_format.set_align('vcenter')
+        cell_format.set_text_wrap()
 
         highlight_format = workbook.add_format()
         highlight_format.set_align('center')
@@ -474,6 +475,8 @@ class EfficientNetWrapper:
         # self.get_ensemble_model()
         fail_class_index = [self.classes.index(class_) for class_ in self.failClasses]
         pass_class_index = [self.classes.index(class_) for class_ in self.passClasses]
+
+        time_statistic = pd.DataFrame(columns=['Execution_time'])
         for sub_path in path:
             print(f"[DEBUG] Evaluating: {sub_path}")
             image_list = []
@@ -486,17 +489,25 @@ class EfficientNetWrapper:
             start_column = 1
             worksheet = workbook.add_worksheet(sub_path.split("\\")[-1])
             worksheet.write_row( start_row, start_column, Header, cell_format)
-            worksheet.set_column("C:C",10)
+            worksheet.set_column("B:B", 15)
+            worksheet.set_column("C:C", 15)
+
             confusion_matrix = np.zeros(shape=(len(self.id_class_mapping) + 1, len(self.id_class_mapping) + 1), dtype=np.int)
             
             with tqdm.tqdm(total=len(image_list)) as pbar:
                 for image_index, image_path in itertools.islice(enumerate(image_list), len(image_list)):
                     Data = [0] * len(Header)
                     start_row += 1
-                    worksheet.set_row(start_row, 60)
+                    worksheet.set_row(start_row, 90)
                     underkill_overkill_flag = 0
                     img, gt_name = load_and_crop(image_path, self.input_size)
+
+                    start_inference = time.time()
                     pred_id, all_scores, pred_name = self.predict_one(img)
+                    end_inference = time.time()
+
+                    inference_time = end_inference - start_inference
+                    time_statistic = time_statistic.append({"Execution_time": inference_time}, ignore_index=True)
                     if self.binary_option:
 
                         gt_name = 'Reject' if gt_name in self.failClasses else 'Pass'
@@ -506,6 +517,7 @@ class EfficientNetWrapper:
                             underkill_path = os.path.join("_Result",image_path.split("\\")[-2],"UK")
                             os.makedirs(underkill_path, exist_ok=True)
                             image_output_path = os.path.join(underkill_path,image_name)
+                            img = cv2.resize(img, (int(self.input_size * 1.5), int(self.input_size * 1.5)))
                             cv2.imwrite(image_output_path, img)
                             shutil.copy(image_path + ".json", os.path.join(underkill_path,image_name+".json"))
                             underkill_overkill_flag = -1
@@ -513,6 +525,7 @@ class EfficientNetWrapper:
                             overkill_path = os.path.join("_Result",image_path.split("\\")[-2],"OK")
                             os.makedirs(overkill_path, exist_ok=True)
                             image_output_path = os.path.join(overkill_path,image_name)
+                            img = cv2.resize(img, (int(self.input_size * 1.5), int(self.input_size * 1.5)))
                             cv2.imwrite(image_output_path, img)
                             shutil.copy(image_path + ".json", os.path.join(overkill_path,image_name+".json"))
                             underkill_overkill_flag = 1
@@ -520,6 +533,7 @@ class EfficientNetWrapper:
                             result_path = os.path.join("_Result", image_path.split("\\")[-2])
                             os.makedirs(result_path, exist_ok=True)
                             image_output_path = os.path.join(result_path,image_name)
+                            img = cv2.resize(img, (int(self.input_size * 1.5), int(self.input_size * 1.5)))
                             cv2.imwrite(image_output_path, img)
                             shutil.copy(image_path + ".json", os.path.join(result_path,image_name + ".json"))
                     else:
@@ -530,6 +544,7 @@ class EfficientNetWrapper:
                             underkill_path = os.path.join("_Result",image_path.split("\\")[-2],"UK")
                             os.makedirs(underkill_path, exist_ok=True)
                             image_output_path = os.path.join(underkill_path,image_name)
+                            img = cv2.resize(img, (int(self.input_size * 1.5), int(self.input_size * 1.5)))
                             cv2.imwrite(image_output_path, img)
                             shutil.copy(image_path + ".json", os.path.join(underkill_path,image_name+".json"))
                             underkill_overkill_flag = -1
@@ -537,6 +552,7 @@ class EfficientNetWrapper:
                             overkill_path = os.path.join("_Result",image_path.split("\\")[-2],"OK")
                             os.makedirs(overkill_path, exist_ok=True)
                             image_output_path = os.path.join(overkill_path,image_name)
+                            img = cv2.resize(img, (int(self.input_size * 1.5), int(self.input_size * 1.5)))
                             cv2.imwrite(image_output_path, img)
                             shutil.copy(image_path + ".json", os.path.join(overkill_path,image_name+".json"))
                             underkill_overkill_flag = 1
@@ -544,6 +560,7 @@ class EfficientNetWrapper:
                             result_path = os.path.join("_Result", image_path.split("\\")[-2])
                             os.makedirs(result_path, exist_ok=True)
                             image_output_path = os.path.join(result_path,image_name)
+                            img = cv2.resize(img, (int(self.input_size * 1.5), int(self.input_size * 1.5)))
                             cv2.imwrite(image_output_path, img)
                             shutil.copy(image_path + ".json", os.path.join(result_path,image_name + ".json"))
                     
@@ -574,6 +591,8 @@ class EfficientNetWrapper:
             print('\n%s' % confusion_matrix.astype(int))
 
         workbook.close()
+        time_statistic.to_csv("Execution_time.csv", index=False)
+
     def checking_models(self):
         model_path_ls = []
         

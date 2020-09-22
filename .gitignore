@@ -111,3 +111,4 @@ export_excel_result.py
 *.DESKTOP-VDP5TCK
 *.h5
 *.xlsx
+*.csv
